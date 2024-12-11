@@ -1,0 +1,37 @@
+[package]
+name = "phasor"
+version = "0.1.0"
+edition = "2021"
+authors = ["Michael McCulloch <michael@semanticallyinvalid.net>"]
+description = "GPU-accelerated complex arithmetic library built on Candle"
+license = "MIT"
+repository = "https://git.semanticallyinvalid.net/MichaelMcCulloch/phasor"
+keywords = ["complex", "gpu", "cuda", "mathematics", "candle"]
+categories = ["mathematics", "science", "gpu"]
+
+[dependencies]
+candle-core = { version = "0.8.0", default-features = false }
+candle-nn = { version = "0.8.0", default-features = false }
+num-complex = "0.4.6"
+half = "2.4.1"
+
+[dev-dependencies]
+approx = "0.5"
+pretty_assertions = "1.4"
+test-log = "0.2"
+env_logger = "0.11.5"
+
+[features]
+default = []
+cuda = [
+    "candle-core/cuda",
+    "candle-nn/cuda",
+]
+cudnn = [
+    "cuda",
+    "candle-core/cudnn",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

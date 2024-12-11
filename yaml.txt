@@ -1,0 +1,51 @@
+image: rust:latest
+
+stages:
+  - test
+  - lint
+
+# Template for cargo commands
+.cargo-test:
+  stage: test
+  before_script:
+    - rustc --version
+    - cargo --version
+
+# Run tests without CUDA
+test-cpu:
+  extends: .cargo-test
+  script:
+    - cargo test --verbose
+
+# Run clippy lints
+lint:
+  stage: lint
+  script:
+    - rustup component add clippy
+    - cargo clippy -- -D warnings
+
+# Optional: Test with CUDA features if CUDA is available
+# Commented out by default - uncomment and configure when needed
+#test-cuda:
+#  extends: .cargo-test
+#  image: nvidia/cuda:12.1.0-devel-ubuntu22.04
+#  tags:
+#    - cuda
+#  before_script:
+#    - apt-get update && apt-get install -y curl build-essential
+#    - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+#    - source $HOME/.cargo/env
+#  script:
+#    - cargo test --features cuda --verbose
+
+# Cache dependencies between runs
+cache:
+  paths:
+    - target/
+    - ~/.cargo/
+
+# Only run pipeline on main branch and merge requests
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"

@@ -1,16 +1,17 @@
-mod column_vector;
 mod complex_column_vector;
 mod complex_matrix;
 mod complex_row_vector;
 mod complex_scalar;
-mod matrix;
+mod real_column_vector;
+mod real_matrix;
+mod real_row_vector;
 mod real_scaler;
-mod row_vector;
 
 pub use {
-    column_vector::ColumnVector, complex_column_vector::ComplexColumnVector,
-    complex_matrix::ComplexMatrix, complex_row_vector::ComplexRowVector,
-    complex_scalar::ComplexScalar, matrix::Matrix, real_scaler::Scalar, row_vector::RowVector,
+    complex_column_vector::ComplexColumnVector, complex_matrix::ComplexMatrix,
+    complex_row_vector::ComplexRowVector, complex_scalar::ComplexScalar,
+    real_column_vector::ColumnVector, real_matrix::Matrix, real_row_vector::RowVector,
+    real_scaler::Scalar,
 };
 
 #[cfg(test)]

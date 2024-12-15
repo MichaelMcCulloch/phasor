@@ -2757,7 +2757,6 @@ macro_rules! impl_complex_comparison_op {
             type Output = $output_type<u8>;
             #[inline]
             fn lt(&self, other: &Self) -> Result<Self::Output> {
-                use crate::*;
                 Ok(Scalar(
                     crate::utils::methods::generic_complex_lt::<T>(
                         &self.real.0,
@@ -2835,7 +2834,6 @@ macro_rules! impl_complex_comparison_op {
             type Output = $output_type<u8, $rows>;
             #[inline]
             fn lt(&self, other: &Self) -> Result<Self::Output> {
-                use crate::*;
                 Ok($output_type(
                     crate::utils::methods::generic_complex_lt::<T>(
                         &self.real.0,
@@ -2915,7 +2913,6 @@ macro_rules! impl_complex_comparison_op {
             type Output = $output_type<u8, $rows, $cols>;
             #[inline]
             fn lt(&self, other: &Self) -> Result<Self::Output> {
-                use crate::*;
                 Ok(Matrix(
                     crate::utils::methods::generic_complex_lt::<T>(
                         &self.real.0,
@@ -2995,7 +2992,6 @@ macro_rules! impl_complex_boolean_op {
             type Output = Self;
             #[inline]
             fn and(&self, other: &Self) -> Result<Self::Output> {
-                use crate::*;
                 Ok($output_type(
                     crate::utils::methods::generic_complex_and(&self.0, &other.0)?,
                     PhantomData,
@@ -3032,7 +3028,6 @@ macro_rules! impl_complex_boolean_op {
             type Output = Self;
             #[inline]
             fn and(&self, other: &Self) -> Result<Self::Output> {
-                use crate::*;
                 Ok($output_type(
                     crate::utils::methods::generic_complex_and(&self.0, &other.0)?,
                     PhantomData,
@@ -3069,7 +3064,6 @@ macro_rules! impl_complex_boolean_op {
             type Output = Self;
             #[inline]
             fn and(&self, other: &Self) -> Result<Self::Output> {
-                use crate::*;
                 Ok($output_type(
                     crate::utils::methods::generic_complex_and(&self.0, &other.0)?,
                     PhantomData,
@@ -3109,7 +3103,6 @@ macro_rules! impl_complex_tensor_factory {
         {
             #[inline]
             fn zeros(device: &Device) -> Result<Self> {
-                use crate::*;
                 Ok(Self {
                     real: $real_output::zeros(device)?,
                     imag: $real_output::zeros(device)?,
@@ -3135,7 +3128,6 @@ macro_rules! impl_complex_tensor_factory {
         impl<T: WithDType, const $rows: usize> TensorFactory<T> for $type<T, $rows> {
             #[inline]
             fn zeros(device: &Device) -> Result<Self> {
-                use crate::*;
                 Ok(Self {
                     real: $real_output::zeros(device)?,
                     imag: $real_output::zeros(device)?,
@@ -3161,7 +3153,6 @@ macro_rules! impl_complex_tensor_factory {
         impl<T: WithDType> TensorFactory<T> for $type<T> {
             #[inline]
             fn zeros(device: &Device) -> Result<Self> {
-                use crate::*;
                 Ok(Self {
                     real: $real_output::zeros(device)?,
                     imag: $real_output::zeros(device)?,

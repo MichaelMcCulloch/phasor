@@ -1,3 +1,6 @@
+#[macro_use]
+mod utils;
+
 mod operands;
 mod ops;
 

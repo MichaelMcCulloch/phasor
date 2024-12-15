@@ -760,3 +760,156 @@ pub fn generic_where_complex<T: WithDType>(
         condition.where_cond(on_true_imag, on_false_imag)?,
     ))
 }
+
+// Generic function for complex comparison less than
+#[inline]
+pub fn generic_complex_lt<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<Tensor> {
+    let mag_self = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(real, 2.0)?,
+            &generic_powf::<T>(imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    let mag_other = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(other_real, 2.0)?,
+            &generic_powf::<T>(other_imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    generic_lt::<T>(&mag_self, &mag_other)
+}
+
+// Generic function for complex comparison less than or equal to
+#[inline]
+pub fn generic_complex_lte<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<Tensor> {
+    let mag_self = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(real, 2.0)?,
+            &generic_powf::<T>(imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    let mag_other = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(other_real, 2.0)?,
+            &generic_powf::<T>(other_imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    generic_lte::<T>(&mag_self, &mag_other)
+}
+
+// Generic function for complex comparison equal to
+#[inline]
+pub fn generic_complex_eq<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<Tensor> {
+    let real_eq = generic_eq::<T>(real, other_real)?;
+    let imag_eq = generic_eq::<T>(imag, other_imag)?;
+    generic_mul::<T>(&real_eq, &imag_eq)
+}
+
+// Generic function for complex comparison not equal to
+#[inline]
+pub fn generic_complex_ne<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<Tensor> {
+    let real_ne = generic_ne::<T>(real, other_real)?;
+    let imag_ne = generic_ne::<T>(imag, other_imag)?;
+    generic_gt::<T>(
+        &generic_add::<T>(&real_ne, &imag_ne)?,
+        &generic_zeros::<T>(real.device(), T::DTYPE, real.shape())?,
+    )
+}
+
+// Generic function for complex comparison greater than
+#[inline]
+pub fn generic_complex_gt<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<Tensor> {
+    let mag_self = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(real, 2.0)?,
+            &generic_powf::<T>(imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    let mag_other = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(other_real, 2.0)?,
+            &generic_powf::<T>(other_imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    generic_gt::<T>(&mag_self, &mag_other)
+}
+
+// Generic function for complex comparison greater than or equal to
+#[inline]
+pub fn generic_complex_gte<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<Tensor> {
+    let mag_self = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(real, 2.0)?,
+            &generic_powf::<T>(imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    let mag_other = generic_powf::<T>(
+        &generic_add::<T>(
+            &generic_powf::<T>(other_real, 2.0)?,
+            &generic_powf::<T>(other_imag, 2.0)?,
+        )?,
+        0.5,
+    )?;
+    generic_gte::<T>(&mag_self, &mag_other)
+}
+
+// Generic function for complex logical and
+#[inline]
+pub fn generic_complex_and<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
+    lhs.mul(rhs)
+}
+
+// Generic function for complex logical or
+#[inline]
+pub fn generic_complex_or<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
+    lhs.ne(0u8)?.add(&rhs.ne(0u8)?)?.ne(0u8)
+}
+
+// Generic function for complex logical xor
+#[inline]
+pub fn generic_complex_xor<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
+    lhs.ne(rhs)
+}
+
+// Generic function for complex logical not
+#[inline]
+pub fn generic_complex_not<T: WithDType>(tensor: &Tensor) -> Result<Tensor> {
+    tensor.eq(0u8)
+}

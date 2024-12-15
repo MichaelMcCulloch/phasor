@@ -1,9 +1,6 @@
 mod scalar {
     use crate::ops::*;
-    use crate::{
-        ColumnVector, ComplexColumnVector, ComplexMatrix, ComplexRowVector, ComplexScalar,
-        RowVector,
-    };
+    use crate::ComplexScalar;
     use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
     use std::{f64::consts::PI, marker::PhantomData};
     #[derive(Debug, Clone)]
@@ -3409,8 +3406,8 @@ mod complex_row_vector {
 }
 mod complex_column_vector {
     use crate::ops::*;
-    use crate::{ColumnVector, ComplexMatrix, ComplexRowVector, ComplexScalar, RowVector, Scalar};
-    use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
+    use crate::{ColumnVector, ComplexMatrix, ComplexRowVector, ComplexScalar};
+    use candle_core::{DType, Device, FloatDType, Result, WithDType};
     use std::{f64::consts::PI, marker::PhantomData};
     #[derive(Debug, Clone)]
     pub struct ComplexColumnVector<T: WithDType, const ROWS: usize> {
@@ -3863,7 +3860,7 @@ mod complex_column_vector {
 mod complex_matrix {
     use crate::ops::*;
     use crate::{ComplexColumnVector, ComplexRowVector, ComplexScalar, Matrix};
-    use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
+    use candle_core::{DType, Device, FloatDType, Result, WithDType};
     use std::{f64::consts::PI, marker::PhantomData};
     #[derive(Debug, Clone)]
     pub struct ComplexMatrix<T: WithDType, const ROWS: usize, const C: usize> {

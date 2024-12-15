@@ -2,35 +2,22 @@ use crate::ops::*;
 use crate::*;
 use crate::{ColumnVector, ComplexRowVector};
 use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
-use std::{f64::consts::PI, marker::PhantomData};
+use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct RowVector<T: WithDType, const ROWS: usize>(pub(crate) Tensor, pub(crate) PhantomData<T>);
 
+impl_tensor_base!(RowVector, 0, ROWS);
 impl_elementwise_op!(RowVector, 0, ROWS);
 impl_scalar_op!(RowVector, 0, ROWS);
 impl_trig_op!(RowVector, 0, ROWS);
 impl_unary_op!(RowVector, 0, ColumnVector, ROWS);
 impl_comparison_op!(RowVector, 0, RowVector, ROWS);
+impl_tensor_factory!(RowVector, 0, ROWS);
+impl_tensor_factory_float!(RowVector, 0, ROWS);
+impl_conditional_op!(RowVector, 0, RowVector, ComplexRowVector, ROWS);
+impl_boolean_op!(RowVector, 0, ROWS);
+
 impl<T: WithDType, const ROWS: usize> IsRowVector<ROWS> for RowVector<T, ROWS> {}
-impl<T: WithDType, const COLS: usize> TensorBase<T> for RowVector<T, COLS> {
-    type ReadOutput = Vec<T>;
-    #[inline]
-    fn device(&self) -> &Device {
-        self.0.device()
-    }
-    #[inline]
-    fn dtype() -> DType {
-        T::DTYPE
-    }
-    #[inline]
-    fn shape() -> (usize, usize) {
-        (1, COLS)
-    }
-    #[inline]
-    fn read(&self) -> Result<Self::ReadOutput> {
-        Ok(self.0.to_vec2()?.into_iter().flatten().collect())
-    }
-}
 impl<T: WithDType, const COLS: usize> RowVector<T, COLS> {
     pub fn new(data: &[T], device: &Device) -> Result<RowVector<T, COLS>> {
         assert!(data.len() == COLS);
@@ -70,103 +57,7 @@ impl<T: WithDType, const COLS: usize> RowVectorOps<T, COLS> for RowVector<T, COL
         Ok(Matrix(self.0.broadcast_as((ROWS, COLS))?, PhantomData))
     }
 }
-impl<T: WithDType, const COLS: usize> TensorFactory<T> for RowVector<T, COLS> {
-    #[inline]
-    fn zeros(device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::zeros(Self::shape(), T::DTYPE, device)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn ones(device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::ones(Self::shape(), T::DTYPE, device)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn ones_neg(device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::ones(Self::shape(), T::DTYPE, device)?.neg()?,
-            PhantomData,
-        ))
-    }
-}
-impl<T: WithDType, const COLS: usize> ConditionalOp<T> for RowVector<u8, COLS> {
-    type Output = RowVector<T, COLS>;
-    type ComplexOutput = ComplexRowVector<T, COLS>;
-    #[inline]
-    fn where_cond(&self, on_true: &Self::Output, on_false: &Self::Output) -> Result<Self::Output> {
-        Ok(RowVector::<T, COLS>(
-            self.0.where_cond(&on_true.0, &on_false.0)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn where_cond_complex(
-        &self,
-        on_true: &Self::ComplexOutput,
-        on_false: &Self::ComplexOutput,
-    ) -> Result<Self::ComplexOutput> {
-        Ok(ComplexRowVector::<T, COLS> {
-            real: RowVector(
-                self.0.where_cond(&on_true.real.0, &on_false.real.0)?,
-                PhantomData,
-            ),
-            imag: RowVector(
-                self.0.where_cond(&on_true.imag.0, &on_false.imag.0)?,
-                PhantomData,
-            ),
-        })
-    }
-    #[inline]
-    fn promote(&self, dtype: DType) -> Result<Self::Output> {
-        Ok(RowVector(self.0.to_dtype(dtype)?, PhantomData))
-    }
-}
-impl<const COLS: usize> BooleanOp for RowVector<u8, COLS> {
-    type Output = RowVector<u8, COLS>;
 
-    #[inline]
-    fn and(&self, other: &Self) -> Result<Self::Output> {
-        Ok(Self(self.0.mul(&other.0)?, PhantomData))
-    }
-
-    #[inline]
-    fn or(&self, other: &Self) -> Result<Self::Output> {
-        Ok(Self(
-            self.0.ne(0u8)?.add(&other.0.ne(0u8)?)?.ne(0u8)?,
-            PhantomData,
-        ))
-    }
-
-    #[inline]
-    fn xor(&self, other: &Self) -> Result<Self::Output> {
-        Ok(Self(self.0.ne(&other.0)?, PhantomData))
-    }
-
-    #[inline]
-    fn not(&self) -> Result<Self::Output> {
-        Ok(Self(self.0.eq(0u8)?, PhantomData))
-    }
-}
-impl<F: FloatDType, const COLS: usize> TensorFactoryFloat<F> for RowVector<F, COLS> {
-    #[inline]
-    fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::randn(mean, std, Self::shape(), device)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn randu(low: F, high: F, device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::rand(low, high, Self::shape(), device)?,
-            PhantomData,
-        ))
-    }
-}
 #[cfg(test)]
 mod test {
 

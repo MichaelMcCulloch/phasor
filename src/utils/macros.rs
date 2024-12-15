@@ -1,4 +1,3 @@
-// Macro for ElementWiseOp
 macro_rules! impl_elementwise_op {
     ($type:ident, $tensor_field:tt) => {
         impl<T: WithDType> ElementWiseOp<T> for $type<T> {
@@ -6,34 +5,37 @@ macro_rules! impl_elementwise_op {
             #[inline]
             fn add(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.add(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_add::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn sub(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.sub(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_sub::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn mul(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.mul(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_mul::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn div(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.div(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_div::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn clamp(&self, min: &T, max: &T) -> Result<Self> {
-                Ok(Self(self.$tensor_field.clamp(*min, *max)?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_clamp::<T>(&self.0, min, max)?,
+                    PhantomData,
+                ))
             }
         }
     };
@@ -43,34 +45,37 @@ macro_rules! impl_elementwise_op {
             #[inline]
             fn add(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.add(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_add::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn sub(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.sub(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_sub::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn mul(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.mul(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_mul::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn div(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.div(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_div::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn clamp(&self, min: &T, max: &T) -> Result<Self> {
-                Ok(Self(self.$tensor_field.clamp(*min, *max)?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_clamp::<T>(&self.0, min, max)?,
+                    PhantomData,
+                ))
             }
         }
     };
@@ -82,96 +87,91 @@ macro_rules! impl_elementwise_op {
             #[inline]
             fn add(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.add(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_add::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn sub(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.sub(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_sub::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn mul(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.mul(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_mul::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn div(&self, rhs: &Self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.$tensor_field.div(&rhs.$tensor_field)?,
+                    crate::utils::methods::generic_div::<T>(&self.0, &rhs.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn clamp(&self, min: &T, max: &T) -> Result<Self> {
-                Ok(Self(self.$tensor_field.clamp(*min, *max)?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_clamp::<T>(&self.0, min, max)?,
+                    PhantomData,
+                ))
             }
         }
     };
 }
 
-// Macro for ScalarOp
 macro_rules! impl_scalar_op {
     ($type:ident, $tensor_field:tt) => {
         impl<T: WithDType> ScalarOp<T> for $type<T> {
             #[inline]
             fn add_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_add(&scalar_tensor)?,
+                    crate::utils::methods::generic_add_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn sub_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_sub(&scalar_tensor)?,
+                    crate::utils::methods::generic_sub_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn mul_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_mul(&scalar_tensor)?,
+                    crate::utils::methods::generic_mul_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn div_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_div(&scalar_tensor)?,
+                    crate::utils::methods::generic_div_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn powf(&self, exponent: f64) -> Result<Self> {
-                Ok(Self(self.$tensor_field.powf(exponent)?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_powf::<T>(&self.0, exponent)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn pow(&self, other: &Self) -> Result<Self> {
                 Ok(Self(
-                    self.$tensor_field.pow(&other.$tensor_field)?,
+                    crate::utils::methods::generic_pow::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn pow_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_pow(&scalar_tensor)?,
+                    crate::utils::methods::generic_pow_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
@@ -181,57 +181,50 @@ macro_rules! impl_scalar_op {
         impl<T: WithDType, const $rows: usize> ScalarOp<T> for $type<T, $rows> {
             #[inline]
             fn add_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_add(&scalar_tensor)?,
+                    crate::utils::methods::generic_add_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn sub_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_sub(&scalar_tensor)?,
+                    crate::utils::methods::generic_sub_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn mul_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_mul(&scalar_tensor)?,
+                    crate::utils::methods::generic_mul_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn div_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_div(&scalar_tensor)?,
+                    crate::utils::methods::generic_div_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn powf(&self, exponent: f64) -> Result<Self> {
-                Ok(Self(self.$tensor_field.powf(exponent)?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_powf::<T>(&self.0, exponent)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn pow(&self, other: &Self) -> Result<Self> {
                 Ok(Self(
-                    self.$tensor_field.pow(&other.$tensor_field)?,
+                    crate::utils::methods::generic_pow::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn pow_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_pow(&scalar_tensor)?,
+                    crate::utils::methods::generic_pow_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
@@ -243,57 +236,50 @@ macro_rules! impl_scalar_op {
         {
             #[inline]
             fn add_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_add(&scalar_tensor)?,
+                    crate::utils::methods::generic_add_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn sub_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_sub(&scalar_tensor)?,
+                    crate::utils::methods::generic_sub_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn mul_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_mul(&scalar_tensor)?,
+                    crate::utils::methods::generic_mul_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn div_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_div(&scalar_tensor)?,
+                    crate::utils::methods::generic_div_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn powf(&self, exponent: f64) -> Result<Self> {
-                Ok(Self(self.$tensor_field.powf(exponent)?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_powf::<T>(&self.0, exponent)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn pow(&self, other: &Self) -> Result<Self> {
                 Ok(Self(
-                    self.$tensor_field.pow(&other.$tensor_field)?,
+                    crate::utils::methods::generic_pow::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn pow_scalar(&self, scalar: T) -> Result<Self> {
-                let scalar_tensor =
-                    Tensor::from_vec(vec![scalar], (1, 1), self.$tensor_field.device())?;
                 Ok(Self(
-                    self.$tensor_field.broadcast_pow(&scalar_tensor)?,
+                    crate::utils::methods::generic_pow_scalar::<T>(&self.0, scalar)?,
                     PhantomData,
                 ))
             }
@@ -301,92 +287,58 @@ macro_rules! impl_scalar_op {
     };
 }
 
-// Macro for TrigOp
 macro_rules! impl_trig_op {
     ($type:ident, $tensor_field:tt) => {
         impl<T: WithDType> TrigOp<T> for $type<T> {
             type Output = Self;
             #[inline]
             fn sin(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.sin()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_sin::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn cos(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.cos()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_cos::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn sinh(&self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.exp()?
-                        .sub(&self.neg()?.exp()?)?
-                        .div_scalar(T::from_f64(2.0))?
-                        .0,
+                    crate::utils::methods::generic_sinh::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn cosh(&self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.exp()?
-                        .add(&self.neg()?.exp()?)?
-                        .div_scalar(T::from_f64(2.0))?
-                        .0,
+                    crate::utils::methods::generic_cosh::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn tanh(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.tanh()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_tanh::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn atan(&self) -> Result<Self::Output> {
-                let i = Self::zeros(self.$tensor_field.device())?.add_scalar(T::from_f64(1.0))?;
-
-                let numerator = i.add(self)?;
-                let denominator = i.sub(self)?;
-
                 Ok(Self(
-                    numerator
-                        .div(&denominator)?
-                        .log()?
-                        .mul_scalar(T::from_f64(0.5))?
-                        .0,
+                    crate::utils::methods::generic_atan::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn atan2(&self, x: &Self) -> Result<Self::Output> {
-                let zero = Self::zeros(self.$tensor_field.device())?;
-                let eps =
-                    Self::ones(self.$tensor_field.device())?.mul_scalar(T::from_f64(1e-15))?;
-                let pi = Self::ones(self.$tensor_field.device())?.mul_scalar(T::from_f64(PI))?;
-                let pi_half = pi.mul_scalar(T::from_f64(0.5))?;
-
-                // Compute magnitudes
-                let y_mag = self.abs()?;
-                let x_mag = x.abs()?;
-
-                // Special cases
-                let both_zero = y_mag.lt(&eps)?.mul(&x_mag.lt(&eps)?)?;
-                let x_zero = x_mag.lt(&eps)?;
-
-                // Base atan computation
-                let base_atan = self.div(x)?.atan()?;
-
-                // Quadrant adjustments
-                let x_lt_zero = x.lt(&zero)?;
-                let y_gte_zero = self.gte(&zero)?;
-                let adjustment = x_lt_zero.and(&y_gte_zero)?.where_cond(&pi, &pi.neg()?)?;
-                let adjusted_atan = base_atan.add(&adjustment)?;
-
-                // Handle x = 0 cases
-                let x_zero_result = y_gte_zero.where_cond(&pi_half, &pi_half.neg()?)?;
-
-                // Combine all cases
-                let result = both_zero
-                    .where_cond(&zero, &x_zero.where_cond(&x_zero_result, &adjusted_atan)?)?;
-
-                Ok(result)
+                Ok(Self(
+                    crate::utils::methods::generic_atan2::<T>(&self.0, &x.0)?,
+                    PhantomData,
+                ))
             }
         }
     };
@@ -395,85 +347,52 @@ macro_rules! impl_trig_op {
             type Output = Self;
             #[inline]
             fn sin(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.sin()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_sin::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn cos(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.cos()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_cos::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn sinh(&self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.exp()?
-                        .sub(&self.neg()?.exp()?)?
-                        .div_scalar(T::from_f64(2.0))?
-                        .0,
+                    crate::utils::methods::generic_sinh::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn cosh(&self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.exp()?
-                        .add(&self.neg()?.exp()?)?
-                        .div_scalar(T::from_f64(2.0))?
-                        .0,
+                    crate::utils::methods::generic_cosh::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn tanh(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.tanh()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_tanh::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn atan(&self) -> Result<Self::Output> {
-                let i = Self::zeros(self.$tensor_field.device())?.add_scalar(T::from_f64(1.0))?;
-
-                let numerator = i.add(self)?;
-                let denominator = i.sub(self)?;
-
                 Ok(Self(
-                    numerator
-                        .div(&denominator)?
-                        .log()?
-                        .mul_scalar(T::from_f64(0.5))?
-                        .0,
+                    crate::utils::methods::generic_atan::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn atan2(&self, x: &Self) -> Result<Self::Output> {
-                let zero = Self::zeros(self.$tensor_field.device())?;
-                let eps =
-                    Self::ones(self.$tensor_field.device())?.mul_scalar(T::from_f64(1e-15))?;
-                let pi = Self::ones(self.$tensor_field.device())?.mul_scalar(T::from_f64(PI))?;
-                let pi_half = pi.mul_scalar(T::from_f64(0.5))?;
-
-                // Compute magnitudes
-                let y_mag = self.abs()?;
-                let x_mag = x.abs()?;
-
-                // Special cases
-                let both_zero = y_mag.lt(&eps)?.mul(&x_mag.lt(&eps)?)?;
-                let x_zero = x_mag.lt(&eps)?;
-
-                // Base atan computation
-                let base_atan = self.div(x)?.atan()?;
-
-                // Quadrant adjustments
-                let x_lt_zero = x.lt(&zero)?;
-                let y_gte_zero = self.gte(&zero)?;
-                let adjustment = x_lt_zero.and(&y_gte_zero)?.where_cond(&pi, &pi.neg()?)?;
-                let adjusted_atan = base_atan.add(&adjustment)?;
-
-                // Handle x = 0 cases
-                let x_zero_result = y_gte_zero.where_cond(&pi_half, &pi_half.neg()?)?;
-
-                // Combine all cases
-                let result = both_zero
-                    .where_cond(&zero, &x_zero.where_cond(&x_zero_result, &adjusted_atan)?)?;
-
-                Ok(result)
+                Ok(Self(
+                    crate::utils::methods::generic_atan2::<T>(&self.0, &x.0)?,
+                    PhantomData,
+                ))
             }
         }
     };
@@ -484,91 +403,57 @@ macro_rules! impl_trig_op {
             type Output = Self;
             #[inline]
             fn sin(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.sin()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_sin::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn cos(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.cos()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_cos::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn sinh(&self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.exp()?
-                        .sub(&self.neg()?.exp()?)?
-                        .div_scalar(T::from_f64(2.0))?
-                        .0,
+                    crate::utils::methods::generic_sinh::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn cosh(&self) -> Result<Self::Output> {
                 Ok(Self(
-                    self.exp()?
-                        .add(&self.neg()?.exp()?)?
-                        .div_scalar(T::from_f64(2.0))?
-                        .0,
+                    crate::utils::methods::generic_cosh::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn tanh(&self) -> Result<Self::Output> {
-                Ok(Self(self.$tensor_field.tanh()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_tanh::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn atan(&self) -> Result<Self::Output> {
-                let i = Self::zeros(self.$tensor_field.device())?.add_scalar(T::from_f64(1.0))?;
-
-                let numerator = i.add(self)?;
-                let denominator = i.sub(self)?;
-
                 Ok(Self(
-                    numerator
-                        .div(&denominator)?
-                        .log()?
-                        .mul_scalar(T::from_f64(0.5))?
-                        .0,
+                    crate::utils::methods::generic_atan::<T>(&self.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn atan2(&self, x: &Self) -> Result<Self::Output> {
-                let zero = Self::zeros(self.$tensor_field.device())?;
-                let eps =
-                    Self::ones(self.$tensor_field.device())?.mul_scalar(T::from_f64(1e-15))?;
-                let pi = Self::ones(self.$tensor_field.device())?.mul_scalar(T::from_f64(PI))?;
-                let pi_half = pi.mul_scalar(T::from_f64(0.5))?;
-
-                // Compute magnitudes
-                let y_mag = self.abs()?;
-                let x_mag = x.abs()?;
-
-                // Special cases
-                let both_zero = y_mag.lt(&eps)?.mul(&x_mag.lt(&eps)?)?;
-                let x_zero = x_mag.lt(&eps)?;
-
-                // Base atan computation
-                let base_atan = self.div(x)?.atan()?;
-
-                // Quadrant adjustments
-                let x_lt_zero = x.lt(&zero)?;
-                let y_gte_zero = self.gte(&zero)?;
-                let adjustment = x_lt_zero.and(&y_gte_zero)?.where_cond(&pi, &pi.neg()?)?;
-                let adjusted_atan = base_atan.add(&adjustment)?;
-
-                // Handle x = 0 cases
-                let x_zero_result = y_gte_zero.where_cond(&pi_half, &pi_half.neg()?)?;
-
-                // Combine all cases
-                let result = both_zero
-                    .where_cond(&zero, &x_zero.where_cond(&x_zero_result, &adjusted_atan)?)?;
-
-                Ok(result)
+                Ok(Self(
+                    crate::utils::methods::generic_atan2::<T>(&self.0, &x.0)?,
+                    PhantomData,
+                ))
             }
         }
     };
 }
 
-// Macro for UnaryOp
 macro_rules! impl_unary_op {
     ($type:ident, $tensor_field:tt, $transpose_output:ident) => {
         impl<T: WithDType> UnaryOp<T> for $type<T> {
@@ -576,23 +461,38 @@ macro_rules! impl_unary_op {
             type ScalarOutput = Scalar<T>;
             #[inline]
             fn neg(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.neg()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_neg::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn abs(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.abs()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_abs::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn exp(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.exp()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_exp::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn log(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.log()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_log::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn mean(&self) -> Result<Self::ScalarOutput> {
-                Ok(Scalar(self.$tensor_field.mean_all()?, PhantomData))
+                Ok(Scalar(
+                    crate::utils::methods::generic_mean::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
         }
     };
@@ -602,23 +502,38 @@ macro_rules! impl_unary_op {
             type ScalarOutput = Scalar<T>;
             #[inline]
             fn neg(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.neg()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_neg::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn abs(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.abs()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_abs::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn exp(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.exp()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_exp::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn log(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.log()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_log::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn mean(&self) -> Result<Self::ScalarOutput> {
-                Ok(Scalar(self.$tensor_field.mean_all()?, PhantomData))
+                Ok(Scalar(
+                    crate::utils::methods::generic_mean::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
         }
     };
@@ -630,29 +545,43 @@ macro_rules! impl_unary_op {
             type ScalarOutput = Scalar<T>;
             #[inline]
             fn neg(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.neg()?, PhantomData))
+                Ok($type::<T, $rows, $cols>(
+                    crate::utils::methods::generic_neg::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn abs(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.abs()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_abs::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn exp(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.exp()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_exp::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn log(&self) -> Result<Self> {
-                Ok(Self(self.$tensor_field.log()?, PhantomData))
+                Ok(Self(
+                    crate::utils::methods::generic_log::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn mean(&self) -> Result<Self::ScalarOutput> {
-                Ok(Scalar(self.$tensor_field.mean_all()?, PhantomData))
+                Ok(Scalar(
+                    crate::utils::methods::generic_mean::<T>(&self.0)?,
+                    PhantomData,
+                ))
             }
         }
     };
 }
 
-// Macro for ComparisonOp
 macro_rules! impl_comparison_op {
     ($type:ident, $tensor_field:tt, $output_type:ident) => {
         impl<T: WithDType> ComparisonOp<T> for $type<T> {
@@ -660,42 +589,42 @@ macro_rules! impl_comparison_op {
             #[inline]
             fn lt(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.lt(&other.$tensor_field)?,
+                    crate::utils::methods::generic_lt::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn lte(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.le(&other.$tensor_field)?,
+                    crate::utils::methods::generic_lte::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn eq(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.eq(&other.$tensor_field)?,
+                    crate::utils::methods::generic_eq::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn ne(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.ne(&other.$tensor_field)?,
+                    crate::utils::methods::generic_ne::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn gt(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.gt(&other.$tensor_field)?,
+                    crate::utils::methods::generic_gt::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn gte(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.ge(&other.$tensor_field)?,
+                    crate::utils::methods::generic_gte::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
@@ -707,42 +636,42 @@ macro_rules! impl_comparison_op {
             #[inline]
             fn lt(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.lt(&other.$tensor_field)?,
+                    crate::utils::methods::generic_lt::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn lte(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.le(&other.$tensor_field)?,
+                    crate::utils::methods::generic_lte::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn eq(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.eq(&other.$tensor_field)?,
+                    crate::utils::methods::generic_eq::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn ne(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.ne(&other.$tensor_field)?,
+                    crate::utils::methods::generic_ne::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn gt(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.gt(&other.$tensor_field)?,
+                    crate::utils::methods::generic_gt::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn gte(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.ge(&other.$tensor_field)?,
+                    crate::utils::methods::generic_gte::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
@@ -756,42 +685,42 @@ macro_rules! impl_comparison_op {
             #[inline]
             fn lt(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.lt(&other.$tensor_field)?,
+                    crate::utils::methods::generic_lt::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn lte(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.le(&other.$tensor_field)?,
+                    crate::utils::methods::generic_lte::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn eq(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.eq(&other.$tensor_field)?,
+                    crate::utils::methods::generic_eq::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn ne(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.ne(&other.$tensor_field)?,
+                    crate::utils::methods::generic_ne::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn gt(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.gt(&other.$tensor_field)?,
+                    crate::utils::methods::generic_gt::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn gte(&self, other: &Self) -> Result<Self::Output> {
                 Ok($output_type(
-                    self.$tensor_field.ge(&other.$tensor_field)?,
+                    crate::utils::methods::generic_gte::<T>(&self.0, &other.0)?,
                     PhantomData,
                 ))
             }
@@ -799,89 +728,148 @@ macro_rules! impl_comparison_op {
     };
 }
 
-// Macro for ComplexOp
 macro_rules! impl_complex_op {
-    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident) => {
+    ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident) => {
         impl<T: WithDType> ComplexOp<T> for $type<T> {
             type Output = Self;
             type RealOutput = $real_output<T>;
             #[inline]
             fn conj(&self) -> Result<Self::Output> {
                 Ok(Self {
-                    real: self.real.clone(),
-                    imag: self.imag.neg()?,
+                    real: self.$real_field.clone(),
+                    imag: $real_output::<T>(
+                        crate::utils::methods::generic_neg::<T>(&self.$imag_field.0)?,
+                        PhantomData,
+                    ),
                 })
             }
             #[inline]
             fn magnitude(&self) -> Result<Self::RealOutput> {
                 Ok($real_output(
-                    self.$real_field
-                        .0
-                        .sqr()?
-                        .add(&self.$imag_field.0.sqr()?)?
-                        .sqrt()?,
+                    crate::utils::methods::generic_powf::<T>(
+                        &crate::utils::methods::generic_add::<T>(
+                            &crate::utils::methods::generic_powf::<T>(&self.$real_field.0, 2.0)?,
+                            &crate::utils::methods::generic_powf::<T>(&self.$imag_field.0, 2.0)?,
+                        )?,
+                        0.5,
+                    )?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn arg(&self) -> Result<Self::RealOutput> {
-                self.imag.atan2(&self.real)
+                Ok($real_output(
+                    crate::utils::methods::generic_atan2::<T>(
+                        &self.$imag_field.0,
+                        &self.$real_field.0,
+                    )?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn real(&self) -> Result<Self::RealOutput> {
-                Ok(self.real.clone())
+                Ok(self.$real_field.clone())
             }
             #[inline]
             fn imaginary(&self) -> Result<Self::RealOutput> {
-                Ok(self.imag.clone())
+                Ok(self.$imag_field.clone())
             }
             #[inline]
             fn pow(&self, other: &Self) -> Result<Self::Output> {
-                self.log()?.mul(other)?.exp()
+                Ok(Self {
+                    real: $real_output::<T>(
+                        crate::utils::methods::generic_exp::<T>(
+                            &crate::utils::methods::generic_mul::<T>(
+                                &crate::utils::methods::generic_log::<T>(&self.magnitude()?.0)?,
+                                &other.real.0,
+                            )?,
+                        )?,
+                        PhantomData,
+                    ),
+                    imag: $real_output::<T>(
+                        crate::utils::methods::generic_exp::<T>(
+                            &crate::utils::methods::generic_mul::<T>(
+                                &crate::utils::methods::generic_log::<T>(&self.magnitude()?.0)?,
+                                &other.imag.0,
+                            )?,
+                        )?,
+                        PhantomData,
+                    ),
+                })
             }
         }
     };
-    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident, $rows:tt) => {
+    ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident, $rows:tt) => {
         impl<T: WithDType, const $rows: usize> ComplexOp<T> for $type<T, $rows> {
             type Output = Self;
             type RealOutput = $real_output<T, $rows>;
             #[inline]
             fn conj(&self) -> Result<Self::Output> {
                 Ok(Self {
-                    real: self.real.clone(),
-                    imag: self.imag.mul_scalar(T::from_f64(-1.0))?,
+                    real: self.$real_field.clone(),
+                    imag: $real_output::<T, $rows>(
+                        crate::utils::methods::generic_neg::<T>(&self.$imag_field.0)?,
+                        PhantomData,
+                    ),
                 })
             }
             #[inline]
             fn magnitude(&self) -> Result<Self::RealOutput> {
                 Ok($real_output::<T, $rows>(
-                    self.$real_field
-                        .0
-                        .sqr()?
-                        .add(&self.$imag_field.0.sqr()?)?
-                        .sqrt()?,
+                    crate::utils::methods::generic_powf::<T>(
+                        &crate::utils::methods::generic_add::<T>(
+                            &crate::utils::methods::generic_powf::<T>(&self.$real_field.0, 2.0)?,
+                            &crate::utils::methods::generic_powf::<T>(&self.$imag_field.0, 2.0)?,
+                        )?,
+                        0.5,
+                    )?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn arg(&self) -> Result<Self::RealOutput> {
-                self.imag.atan2(&self.real)
+                Ok($real_output(
+                    crate::utils::methods::generic_atan2::<T>(
+                        &self.$imag_field.0,
+                        &self.$real_field.0,
+                    )?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn real(&self) -> Result<Self::RealOutput> {
-                Ok(self.real.clone())
+                Ok(self.$real_field.clone())
             }
             #[inline]
             fn imaginary(&self) -> Result<Self::RealOutput> {
-                Ok(self.imag.clone())
+                Ok(self.$imag_field.clone())
             }
             #[inline]
             fn pow(&self, other: &Self) -> Result<Self::Output> {
-                self.log()?.mul(other)?.exp()
+                Ok(Self {
+                    real: $real_output::<T, $rows>(
+                        crate::utils::methods::generic_exp::<T>(
+                            &crate::utils::methods::generic_mul::<T>(
+                                &crate::utils::methods::generic_log::<T>(&self.magnitude()?.0)?,
+                                &other.real.0,
+                            )?,
+                        )?,
+                        PhantomData,
+                    ),
+                    imag: $real_output::<T, $rows>(
+                        crate::utils::methods::generic_exp::<T>(
+                            &crate::utils::methods::generic_mul::<T>(
+                                &crate::utils::methods::generic_log::<T>(&self.magnitude()?.0)?,
+                                &other.imag.0,
+                            )?,
+                        )?,
+                        PhantomData,
+                    ),
+                })
             }
         }
     };
-    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident, $rows:tt, $cols:tt) => {
+    ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident, $rows:tt, $cols:tt) => {
         impl<T: WithDType, const $rows: usize, const $cols: usize> ComplexOp<T>
             for $type<T, $rows, $cols>
         {
@@ -890,36 +878,670 @@ macro_rules! impl_complex_op {
             #[inline]
             fn conj(&self) -> Result<Self::Output> {
                 Ok(Self {
-                    real: self.real.clone(),
-                    imag: self.imag.mul_scalar(T::from_f64(-1.0))?,
+                    real: self.$real_field.clone(),
+                    imag: $real_output::<T, $rows, $cols>(
+                        crate::utils::methods::generic_neg::<T>(&self.$imag_field.0)?,
+                        PhantomData,
+                    ),
                 })
             }
             #[inline]
             fn magnitude(&self) -> Result<Self::RealOutput> {
                 Ok($real_output::<T, $rows, $cols>(
-                    self.$real_field
-                        .0
-                        .sqr()?
-                        .add(&self.$imag_field.0.sqr()?)?
-                        .sqrt()?,
+                    crate::utils::methods::generic_powf::<T>(
+                        &crate::utils::methods::generic_add::<T>(
+                            &crate::utils::methods::generic_powf::<T>(&self.$real_field.0, 2.0)?,
+                            &crate::utils::methods::generic_powf::<T>(&self.$imag_field.0, 2.0)?,
+                        )?,
+                        0.5,
+                    )?,
                     PhantomData,
                 ))
             }
             #[inline]
             fn arg(&self) -> Result<Self::RealOutput> {
-                self.imag.atan2(&self.real)
+                Ok($real_output(
+                    crate::utils::methods::generic_atan2::<T>(
+                        &self.$imag_field.0,
+                        &self.$real_field.0,
+                    )?,
+                    PhantomData,
+                ))
             }
             #[inline]
             fn real(&self) -> Result<Self::RealOutput> {
-                Ok(self.real.clone())
+                Ok(self.$real_field.clone())
             }
             #[inline]
             fn imaginary(&self) -> Result<Self::RealOutput> {
-                Ok(self.imag.clone())
+                Ok(self.$imag_field.clone())
             }
             #[inline]
             fn pow(&self, other: &Self) -> Result<Self::Output> {
-                self.log()?.mul(other)?.exp()
+                Ok(Self {
+                    real: $real_output::<T, $rows, $cols>(
+                        crate::utils::methods::generic_exp::<T>(
+                            &crate::utils::methods::generic_mul::<T>(
+                                &crate::utils::methods::generic_log::<T>(&self.magnitude()?.0)?,
+                                &other.real.0,
+                            )?,
+                        )?,
+                        PhantomData,
+                    ),
+                    imag: $real_output::<T, $rows, $cols>(
+                        crate::utils::methods::generic_exp::<T>(
+                            &crate::utils::methods::generic_mul::<T>(
+                                &crate::utils::methods::generic_log::<T>(&self.magnitude()?.0)?,
+                                &other.imag.0,
+                            )?,
+                        )?,
+                        PhantomData,
+                    ),
+                })
+            }
+        }
+    };
+}
+
+macro_rules! impl_tensor_base {
+    ($type:ident, $tensor_field:tt, $rows:tt, $cols:tt) => {
+        impl<T: WithDType, const $rows: usize, const $cols: usize> TensorBase<T>
+            for $type<T, $rows, $cols>
+        {
+            type ReadOutput = Vec<Vec<T>>;
+            #[inline]
+            fn device(&self) -> &Device {
+                self.$tensor_field.device()
+            }
+            #[inline]
+            fn dtype() -> DType {
+                T::DTYPE
+            }
+            #[inline]
+            fn shape() -> (usize, usize) {
+                ($rows, $cols)
+            }
+            #[inline]
+            fn read(&self) -> Result<Self::ReadOutput> {
+                self.$tensor_field.to_vec2()
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt, $units:tt) => {
+        impl<T: WithDType, const $units: usize> TensorBase<T> for $type<T, $units> {
+            type ReadOutput = Vec<T>;
+            #[inline]
+            fn device(&self) -> &Device {
+                self.$tensor_field.device()
+            }
+            #[inline]
+            fn dtype() -> DType {
+                T::DTYPE
+            }
+            #[inline]
+            fn shape() -> (usize, usize) {
+                (1, $units)
+            }
+            #[inline]
+            fn read(&self) -> Result<Self::ReadOutput> {
+                Ok(self
+                    .$tensor_field
+                    .to_vec2()?
+                    .into_iter()
+                    .flatten()
+                    .collect())
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt) => {
+        impl<T: WithDType> TensorBase<T> for $type<T> {
+            type ReadOutput = T;
+            #[inline]
+            fn device(&self) -> &Device {
+                self.$tensor_field.device()
+            }
+            #[inline]
+            fn dtype() -> DType {
+                T::DTYPE
+            }
+            #[inline]
+            fn shape() -> (usize, usize) {
+                (1, 1)
+            }
+            #[inline]
+            fn read(&self) -> Result<Self::ReadOutput> {
+                Ok(self
+                    .$tensor_field
+                    .reshape((1, 1))?
+                    .to_vec2()?
+                    .into_iter()
+                    .flatten()
+                    .last()
+                    .unwrap())
+            }
+        }
+    };
+}
+macro_rules! impl_tensor_base_complex {
+    ($type:ident, $real_field:ident, $imag_field:ident, $rows:tt, $cols:tt) => {
+        impl<T: WithDType, const $rows: usize, const $cols: usize> TensorBase<T>
+            for $type<T, $rows, $cols>
+        {
+            type ReadOutput = (Vec<Vec<T>>, Vec<Vec<T>>);
+            #[inline]
+            fn device(&self) -> &Device {
+                self.$real_field.device()
+            }
+            #[inline]
+            fn dtype() -> DType {
+                T::DTYPE
+            }
+            #[inline]
+            fn shape() -> (usize, usize) {
+                ($rows, $cols)
+            }
+            #[inline]
+            fn read(&self) -> Result<Self::ReadOutput> {
+                Ok((self.$real_field.read()?, self.$imag_field.read()?))
+            }
+        }
+    };
+    ($type:ident, $real_field:ident, $imag_field:ident, $rows:tt) => {
+        impl<T: WithDType, const $rows: usize> TensorBase<T> for $type<T, $rows> {
+            type ReadOutput = (Vec<T>, Vec<T>);
+            #[inline]
+            fn device(&self) -> &Device {
+                self.$real_field.device()
+            }
+            #[inline]
+            fn dtype() -> DType {
+                T::DTYPE
+            }
+            #[inline]
+            fn shape() -> (usize, usize) {
+                (1, $rows)
+            }
+            #[inline]
+            fn read(&self) -> Result<Self::ReadOutput> {
+                Ok((self.$real_field.read()?, self.$imag_field.read()?))
+            }
+        }
+    };
+    ($type:ident, $real_field:ident, $imag_field:ident) => {
+        impl<T: WithDType> TensorBase<T> for $type<T> {
+            type ReadOutput = (T, T);
+            #[inline]
+            fn device(&self) -> &Device {
+                self.$real_field.device()
+            }
+            #[inline]
+            fn dtype() -> DType {
+                T::DTYPE
+            }
+            #[inline]
+            fn shape() -> (usize, usize) {
+                (1, 1)
+            }
+            #[inline]
+            fn read(&self) -> Result<Self::ReadOutput> {
+                Ok((self.$real_field.read()?, self.$imag_field.read()?))
+            }
+        }
+    };
+}
+
+macro_rules! impl_conditional_op {
+    ($type:ident, $tensor_field:tt, $output_type:ident, $complex_output_type:ident, $rows:tt, $cols:tt) => {
+        impl<T: WithDType, const $rows: usize, const $cols: usize> ConditionalOp<T>
+            for $type<u8, $rows, $cols>
+        {
+            type Output = $output_type<T, $rows, $cols>;
+            type ComplexOutput = $complex_output_type<T, $rows, $cols>;
+            #[inline]
+            fn where_cond(
+                &self,
+                on_true: &Self::Output,
+                on_false: &Self::Output,
+            ) -> Result<Self::Output> {
+                Ok($output_type(
+                    self.0.where_cond(&on_true.0, &on_false.0)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn where_cond_complex(
+                &self,
+                on_true: &Self::ComplexOutput,
+                on_false: &Self::ComplexOutput,
+            ) -> Result<Self::ComplexOutput> {
+                Ok($complex_output_type {
+                    real: self.where_cond(&on_true.real()?, &on_false.real()?)?,
+                    imag: self.where_cond(&on_true.imaginary()?, &on_false.imaginary()?)?,
+                })
+            }
+            #[inline]
+            fn promote(&self, dtype: DType) -> Result<Self::Output> {
+                Ok($output_type(self.0.to_dtype(dtype)?, PhantomData))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt, $output_type:ident, $complex_output_type:ident, $rows:tt) => {
+        impl<T: WithDType, const $rows: usize> ConditionalOp<T> for $type<u8, $rows> {
+            type Output = $output_type<T, $rows>;
+            type ComplexOutput = $complex_output_type<T, $rows>;
+            #[inline]
+            fn where_cond(
+                &self,
+                on_true: &Self::Output,
+                on_false: &Self::Output,
+            ) -> Result<Self::Output> {
+                Ok($output_type(
+                    self.0.where_cond(&on_true.0, &on_false.0)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn where_cond_complex(
+                &self,
+                on_true: &Self::ComplexOutput,
+                on_false: &Self::ComplexOutput,
+            ) -> Result<Self::ComplexOutput> {
+                Ok($complex_output_type {
+                    real: self.where_cond(&on_true.real()?, &on_false.real()?)?,
+                    imag: self.where_cond(&on_true.imaginary()?, &on_false.imaginary()?)?,
+                })
+            }
+            #[inline]
+            fn promote(&self, dtype: DType) -> Result<Self::Output> {
+                Ok($output_type(self.0.to_dtype(dtype)?, PhantomData))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt, $output_type:ident, $complex_output_type:ident) => {
+        impl<T: WithDType> ConditionalOp<T> for $type<u8> {
+            type Output = $output_type<T>;
+            type ComplexOutput = $complex_output_type<T>;
+            #[inline]
+            fn where_cond(
+                &self,
+                on_true: &Self::Output,
+                on_false: &Self::Output,
+            ) -> Result<Self::Output> {
+                Ok($output_type(
+                    self.0.where_cond(&on_true.0, &on_false.0)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn where_cond_complex(
+                &self,
+                on_true: &Self::ComplexOutput,
+                on_false: &Self::ComplexOutput,
+            ) -> Result<Self::ComplexOutput> {
+                Ok($complex_output_type {
+                    real: self.where_cond(&on_true.real()?, &on_false.real()?)?,
+                    imag: self.where_cond(&on_true.imaginary()?, &on_false.imaginary()?)?,
+                })
+            }
+            #[inline]
+            fn promote(&self, dtype: DType) -> Result<Self::Output> {
+                Ok($output_type(self.0.to_dtype(dtype)?, PhantomData))
+            }
+        }
+    };
+}
+
+macro_rules! impl_boolean_op {
+    ($type:ident, $tensor_field:tt, $rows:tt, $cols:tt) => {
+        impl<const $rows: usize, const $cols: usize> BooleanOp for $type<u8, $rows, $cols> {
+            type Output = Self;
+            #[inline]
+            fn and(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(self.0.mul(&other.0)?, PhantomData))
+            }
+
+            #[inline]
+            fn or(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(
+                    self.0.ne(0u8)?.add(&other.0.ne(0u8)?)?.ne(0u8)?,
+                    PhantomData,
+                ))
+            }
+
+            #[inline]
+            fn xor(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(self.0.ne(&other.0)?, PhantomData))
+            }
+
+            #[inline]
+            fn not(&self) -> Result<Self::Output> {
+                Ok(Self(self.0.eq(0u8)?, PhantomData))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt, $rows:tt) => {
+        impl<const $rows: usize> BooleanOp for $type<u8, $rows> {
+            type Output = Self;
+            #[inline]
+            fn and(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(self.0.mul(&other.0)?, PhantomData))
+            }
+
+            #[inline]
+            fn or(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(
+                    self.0.ne(0u8)?.add(&other.0.ne(0u8)?)?.ne(0u8)?,
+                    PhantomData,
+                ))
+            }
+
+            #[inline]
+            fn xor(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(self.0.ne(&other.0)?, PhantomData))
+            }
+
+            #[inline]
+            fn not(&self) -> Result<Self::Output> {
+                Ok(Self(self.0.eq(0u8)?, PhantomData))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt) => {
+        impl BooleanOp for $type<u8> {
+            type Output = Self;
+            #[inline]
+            fn and(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(self.0.mul(&other.0)?, PhantomData))
+            }
+
+            #[inline]
+            fn or(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(
+                    self.0.ne(0u8)?.add(&other.0.ne(0u8)?)?.ne(0u8)?,
+                    PhantomData,
+                ))
+            }
+
+            #[inline]
+            fn xor(&self, other: &Self) -> Result<Self::Output> {
+                Ok(Self(self.0.ne(&other.0)?, PhantomData))
+            }
+
+            #[inline]
+            fn not(&self) -> Result<Self::Output> {
+                Ok(Self(self.0.eq(0u8)?, PhantomData))
+            }
+        }
+    };
+}
+
+macro_rules! impl_tensor_factory {
+    ($type:ident, $tensor_field:tt, $rows:tt, $cols:tt) => {
+        impl<T: WithDType, const $rows: usize, const $cols: usize> TensorFactory<T>
+            for $type<T, $rows, $cols>
+        {
+            #[inline]
+            fn zeros(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::zeros(Self::shape(), T::DTYPE, device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn ones(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::ones(Self::shape(), T::DTYPE, device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn ones_neg(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::ones(Self::shape(), T::DTYPE, device)?.neg()?,
+                    PhantomData,
+                ))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt, $rows:tt) => {
+        impl<T: WithDType, const $rows: usize> TensorFactory<T> for $type<T, $rows> {
+            #[inline]
+            fn zeros(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::zeros(Self::shape(), T::DTYPE, device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn ones(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::ones(Self::shape(), T::DTYPE, device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn ones_neg(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::ones(Self::shape(), T::DTYPE, device)?.neg()?,
+                    PhantomData,
+                ))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt) => {
+        impl<T: WithDType> TensorFactory<T> for $type<T> {
+            #[inline]
+            fn zeros(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::zeros(Self::shape(), T::DTYPE, device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn ones(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::ones(Self::shape(), T::DTYPE, device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn ones_neg(device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::ones(Self::shape(), T::DTYPE, device)?.neg()?,
+                    PhantomData,
+                ))
+            }
+        }
+    };
+    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident, $rows:tt, $cols:tt) => {
+        impl<T: WithDType, const $rows: usize, const $cols: usize> TensorFactory<T>
+            for $type<T, $rows, $cols>
+        {
+            #[inline]
+            fn zeros(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::zeros(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+            #[inline]
+            fn ones(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::ones(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+            #[inline]
+            fn ones_neg(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::ones_neg(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+        }
+    };
+    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident, $rows:tt) => {
+        impl<T: WithDType, const $rows: usize> TensorFactory<T> for $type<T, $rows> {
+            #[inline]
+            fn zeros(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::zeros(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+            #[inline]
+            fn ones(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::ones(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+            #[inline]
+            fn ones_neg(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::ones_neg(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+        }
+    };
+    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident) => {
+        impl<T: WithDType> TensorFactory<T> for $type<T> {
+            #[inline]
+            fn zeros(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::zeros(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+            #[inline]
+            fn ones(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::ones(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+            #[inline]
+            fn ones_neg(device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::ones_neg(device)?,
+                    imag: $real_output::zeros(device)?,
+                })
+            }
+        }
+    };
+}
+
+macro_rules! impl_tensor_factory_float {
+    ($type:ident, $tensor_field:tt, $rows:tt, $cols:tt) => {
+        impl<F: FloatDType, const $rows: usize, const $cols: usize> TensorFactoryFloat<F>
+            for $type<F, $rows, $cols>
+        {
+            #[inline]
+            fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::randn(mean, std, Self::shape(), device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn randu(low: F, high: F, device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::rand(low, high, Self::shape(), device)?,
+                    PhantomData,
+                ))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt, $rows:tt) => {
+        impl<F: FloatDType, const $rows: usize> TensorFactoryFloat<F> for $type<F, $rows> {
+            #[inline]
+            fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::randn(mean, std, Self::shape(), device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn randu(low: F, high: F, device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::rand(low, high, Self::shape(), device)?,
+                    PhantomData,
+                ))
+            }
+        }
+    };
+    ($type:ident, $tensor_field:tt) => {
+        impl<F: FloatDType> TensorFactoryFloat<F> for $type<F> {
+            #[inline]
+            fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::randn(mean, std, Self::shape(), device)?,
+                    PhantomData,
+                ))
+            }
+            #[inline]
+            fn randu(low: F, high: F, device: &Device) -> Result<Self> {
+                Ok(Self(
+                    Tensor::rand(low, high, Self::shape(), device)?,
+                    PhantomData,
+                ))
+            }
+        }
+    };
+    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident, $rows:tt, $cols:tt) => {
+        impl<F: FloatDType, const $rows: usize, const $cols: usize> TensorFactoryFloat<F>
+            for $type<F, $rows, $cols>
+        {
+            #[inline]
+            fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::randn(mean, std, device)?,
+                    imag: $real_output::randn(mean, std, device)?,
+                })
+            }
+            #[inline]
+            fn randu(low: F, high: F, device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::randu(low, high, device)?,
+                    imag: $real_output::randu(low, high, device)?,
+                })
+            }
+        }
+    };
+    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident, $rows:tt) => {
+        impl<F: FloatDType, const $rows: usize> TensorFactoryFloat<F> for $type<F, $rows> {
+            #[inline]
+            fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::randn(mean, std, device)?,
+                    imag: $real_output::randn(mean, std, device)?,
+                })
+            }
+            #[inline]
+            fn randu(low: F, high: F, device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::randu(low, high, device)?,
+                    imag: $real_output::randu(low, high, device)?,
+                })
+            }
+        }
+    };
+    ($type:ident, $real_field:tt, $imag_field:tt, $real_output:ident) => {
+        impl<F: FloatDType> TensorFactoryFloat<F> for $type<F> {
+            #[inline]
+            fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::randn(mean, std, device)?,
+                    imag: $real_output::randn(mean, std, device)?,
+                })
+            }
+            #[inline]
+            fn randu(low: F, high: F, device: &Device) -> Result<Self> {
+                Ok(Self {
+                    real: $real_output::randu(low, high, device)?,
+                    imag: $real_output::randu(low, high, device)?,
+                })
             }
         }
     };

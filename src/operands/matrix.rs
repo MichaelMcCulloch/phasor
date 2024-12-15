@@ -7,33 +7,19 @@ pub struct Matrix<T: WithDType, const ROWS: usize, const C: usize>(
     pub(crate) PhantomData<T>,
 );
 
+impl_tensor_base!(Matrix, 0, ROWS, COLS);
 impl_elementwise_op!(Matrix, 0, ROWS, COLS);
 impl_scalar_op!(Matrix, 0, ROWS, COLS);
 impl_trig_op!(Matrix, 0, ROWS, COLS);
 impl_unary_op!(Matrix, 0, Matrix, COLS, ROWS);
 impl_comparison_op!(Matrix, 0, Matrix, ROWS, COLS);
+impl_tensor_factory!(Matrix, 0, ROWS, COLS);
+impl_tensor_factory_float!(Matrix, 0, ROWS, COLS);
+impl_conditional_op!(Matrix, 0, Matrix, ComplexMatrix, ROWS, COLS);
+impl_boolean_op!(Matrix, 0, ROWS, COLS);
 
 impl<T: WithDType, const ROWS: usize, const C: usize> IsMatrix<ROWS, C> for Matrix<T, ROWS, C> {}
 
-impl<T: WithDType, const ROWS: usize, const COLS: usize> TensorBase<T> for Matrix<T, ROWS, COLS> {
-    type ReadOutput = Vec<Vec<T>>;
-    #[inline]
-    fn device(&self) -> &Device {
-        self.0.device()
-    }
-    #[inline]
-    fn dtype() -> DType {
-        T::DTYPE
-    }
-    #[inline]
-    fn shape() -> (usize, usize) {
-        (ROWS, COLS)
-    }
-    #[inline]
-    fn read(&self) -> Result<Self::ReadOutput> {
-        self.0.to_vec2()
-    }
-}
 impl<T: WithDType, const ROWS: usize, const COLS: usize> Matrix<T, ROWS, COLS> {
     pub fn new(data: &[T], device: &Device) -> Result<Matrix<T, ROWS, COLS>> {
         assert!(data.len() == ROWS * COLS);
@@ -74,85 +60,6 @@ impl<T: WithDType, const ROWS: usize, const COLS: usize> MatrixOps<T, ROWS, COLS
         Ok(Matrix(self.0.t()?, PhantomData))
     }
 }
-impl<T: WithDType, const ROWS: usize, const COLS: usize> TensorFactory<T>
-    for Matrix<T, ROWS, COLS>
-{
-    #[inline]
-    fn zeros(device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::zeros(Self::shape(), T::DTYPE, device)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn ones(device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::ones(Self::shape(), T::DTYPE, device)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn ones_neg(device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::ones(Self::shape(), T::DTYPE, device)?.neg()?,
-            PhantomData,
-        ))
-    }
-}
-impl<T: WithDType, const ROWS: usize, const COLS: usize> ConditionalOp<T>
-    for Matrix<u8, ROWS, COLS>
-{
-    type Output = Matrix<T, ROWS, COLS>;
-    type ComplexOutput = ComplexMatrix<T, ROWS, COLS>;
-    #[inline]
-    fn where_cond(&self, on_true: &Self::Output, on_false: &Self::Output) -> Result<Self::Output> {
-        Ok(Matrix::<T, ROWS, COLS>(
-            self.0.where_cond(&on_true.0, &on_false.0)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn where_cond_complex(
-        &self,
-        on_true: &Self::ComplexOutput,
-        on_false: &Self::ComplexOutput,
-    ) -> Result<Self::ComplexOutput> {
-        Ok(ComplexMatrix::<T, ROWS, COLS> {
-            real: self.where_cond(&on_true.real()?, &on_false.real()?)?,
-            imag: self.where_cond(&on_true.imaginary()?, &on_false.imaginary()?)?,
-        })
-    }
-    #[inline]
-    fn promote(&self, dtype: DType) -> Result<Self::Output> {
-        Ok(Matrix(self.0.to_dtype(dtype)?, PhantomData))
-    }
-}
-
-impl<const ROWS: usize, const COLS: usize> BooleanOp for Matrix<u8, ROWS, COLS> {
-    type Output = Matrix<u8, ROWS, COLS>;
-    #[inline]
-    fn and(&self, other: &Self) -> Result<Self::Output> {
-        Ok(Self(self.0.mul(&other.0)?, PhantomData))
-    }
-
-    #[inline]
-    fn or(&self, other: &Self) -> Result<Self::Output> {
-        Ok(Self(
-            self.0.ne(0u8)?.add(&other.0.ne(0u8)?)?.ne(0u8)?,
-            PhantomData,
-        ))
-    }
-
-    #[inline]
-    fn xor(&self, other: &Self) -> Result<Self::Output> {
-        Ok(Self(self.0.ne(&other.0)?, PhantomData))
-    }
-
-    #[inline]
-    fn not(&self) -> Result<Self::Output> {
-        Ok(Self(self.0.eq(0u8)?, PhantomData))
-    }
-}
 impl<T: WithDType, const ROWS: usize, const COLS: usize> MatrixFactory<T, ROWS, COLS>
     for Matrix<T, ROWS, COLS>
 {
@@ -164,24 +71,6 @@ impl<T: WithDType, const ROWS: usize, const COLS: usize> MatrixFactory<T, ROWS, 
         }
         Ok(Self(
             Tensor::from_vec(data, (ROWS, COLS), device)?,
-            PhantomData,
-        ))
-    }
-}
-impl<F: FloatDType, const ROWS: usize, const COLS: usize> TensorFactoryFloat<F>
-    for Matrix<F, ROWS, COLS>
-{
-    #[inline]
-    fn randn(mean: F, std: F, device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::randn(mean, std, Self::shape(), device)?,
-            PhantomData,
-        ))
-    }
-    #[inline]
-    fn randu(low: F, high: F, device: &Device) -> Result<Self> {
-        Ok(Self(
-            Tensor::rand(low, high, Self::shape(), device)?,
             PhantomData,
         ))
     }

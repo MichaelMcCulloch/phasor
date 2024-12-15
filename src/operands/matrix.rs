@@ -1,4 +1,3 @@
-use crate::utils::macros::*;
 use crate::*;
 use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
 use std::{f64::consts::PI, marker::PhantomData};

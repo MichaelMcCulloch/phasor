@@ -18,8 +18,7 @@ mod scalar {
         ) -> Result<Self> {
             let x_lt_zero = x.lt(zero)?;
             let y_gte_zero = self.gte(zero)?;
-            let pi_neg = pi.neg()?;
-            let adjustment = x_lt_zero.where_cond(&y_gte_zero.where_cond(pi, &pi_neg)?, zero)?;
+            let adjustment = x_lt_zero.and(&y_gte_zero)?.where_cond(pi, &pi.neg()?)?;
             base_atan.add(&adjustment)
         }
 
@@ -348,6 +347,76 @@ mod scalar {
         #[inline]
         fn gte(&self, other: &Self) -> Result<Self::Output> {
             Ok(Scalar(self.0.ge(&other.0)?, PhantomData))
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use crate::*;
+        use candle_core::{Device, Result};
+
+        #[test]
+        fn scalar_logical_and() -> Result<()> {
+            let device = Device::Cpu;
+            let a = Scalar::<u8>::new(1, &device)?;
+            let b = Scalar::<u8>::new(0, &device)?;
+            let c = Scalar::<u8>::new(1, &device)?;
+
+            assert_eq!(a.and(&a)?.read()?, 1);
+            assert_eq!(a.and(&b)?.read()?, 0);
+            assert_eq!(b.and(&a)?.read()?, 0);
+            assert_eq!(b.and(&b)?.read()?, 0);
+            assert_eq!(a.and(&c)?.read()?, 1);
+
+            Ok(())
+        }
+
+        #[test]
+        fn scalar_logical_or() -> Result<()> {
+            let device = Device::Cpu;
+            let a = Scalar::<u8>::new(1, &device)?;
+            let b = Scalar::<u8>::new(0, &device)?;
+            let c = Scalar::<u8>::new(1, &device)?;
+
+            assert_eq!(a.or(&a)?.read()?, 1);
+            assert_eq!(a.or(&b)?.read()?, 1);
+            assert_eq!(b.or(&a)?.read()?, 1);
+            assert_eq!(b.or(&b)?.read()?, 0);
+            assert_eq!(a.or(&c)?.read()?, 1);
+            // Test overflow case
+            let x: Scalar<u8> = Scalar::<u8>::new(255, &device)?;
+            let y = Scalar::<u8>::new(1, &device)?;
+            assert_eq!(x.or(&y)?.read()?, 1);
+
+            Ok(())
+        }
+
+        #[test]
+        fn scalar_logical_xor() -> Result<()> {
+            let device = Device::Cpu;
+            let a = Scalar::<u8>::new(1, &device)?;
+            let b = Scalar::<u8>::new(0, &device)?;
+            let c = Scalar::<u8>::new(1, &device)?;
+
+            assert_eq!(a.xor(&a)?.read()?, 0);
+            assert_eq!(a.xor(&b)?.read()?, 1);
+            assert_eq!(b.xor(&a)?.read()?, 1);
+            assert_eq!(b.xor(&b)?.read()?, 0);
+            assert_eq!(a.xor(&c)?.read()?, 0);
+
+            Ok(())
+        }
+
+        #[test]
+        fn scalar_logical_not() -> Result<()> {
+            let device = Device::Cpu;
+            let a = Scalar::<u8>::new(1, &device)?;
+            let b = Scalar::<u8>::new(0, &device)?;
+
+            assert_eq!(a.not()?.read()?, 0);
+            assert_eq!(b.not()?.read()?, 1);
+
+            Ok(())
         }
     }
 }
@@ -693,6 +762,364 @@ mod row_vector {
                 Tensor::rand(low, high, Self::shape(), device)?,
                 PhantomData,
             ))
+        }
+    }
+    #[cfg(test)]
+    mod test {
+
+        use crate::*;
+        use approx::assert_relative_eq;
+        use candle_core::{DType, Device, Result};
+        use operands::test::assert_relative_eq_vec;
+
+        #[test]
+        fn new_tensor1d() -> Result<()> {
+            let device = Device::Cpu;
+            let data: Vec<f64> = vec![1.0, 2.0, 3.0];
+            let tensor = RowVector::<f64, 3>::new(&data, &device)?;
+            assert_eq!(tensor.0.shape().dims(), [1, 3]);
+            Ok(())
+        }
+
+        #[test]
+        fn zeros() -> Result<()> {
+            let device = Device::Cpu;
+            let zeros = RowVector::<f64, 3>::zeros(&device)?;
+            assert_eq!(zeros.read()?, vec![0.0, 0.0, 0.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn ones() -> Result<()> {
+            let device = Device::Cpu;
+            let ones = RowVector::<f64, 3>::ones(&device)?;
+            assert_eq!(ones.read()?, vec![1.0, 1.0, 1.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn ones_neg() -> Result<()> {
+            let device = Device::Cpu;
+            let ones_neg = RowVector::<f64, 3>::ones_neg(&device)?;
+            assert_eq!(ones_neg.read()?, vec![-1.0, -1.0, -1.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn add_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let added = tensor.add_scalar(2.0)?;
+            assert_eq!(added.read()?, vec![3.0, 4.0, 5.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn sub_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let subbed = tensor.sub_scalar(1.0)?;
+            assert_eq!(subbed.read()?, vec![0.0, 1.0, 2.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn mul_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let mulled = tensor.mul_scalar(3.0)?;
+            assert_eq!(mulled.read()?, vec![3.0, 6.0, 9.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn div_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let divided = tensor.div_scalar(2.0)?;
+            assert_eq!(divided.read()?, vec![0.5, 1.0, 1.5]);
+            Ok(())
+        }
+
+        #[test]
+        fn pow_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let powered = tensor.pow_scalar(2.0)?;
+            assert_eq!(powered.read()?, vec![1.0, 4.0, 9.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn element_wise_add() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
+            let added = tensor1.add(&tensor2)?;
+            assert_eq!(added.read()?, vec![3.0, 5.0, 7.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn element_wise_sub() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
+            let subbed = tensor1.sub(&tensor2)?;
+            assert_eq!(subbed.read()?, vec![-1.0, -1.0, -1.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn element_wise_mul() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
+            let mulled = tensor1.mul(&tensor2)?;
+            assert_eq!(mulled.read()?, vec![2.0, 6.0, 12.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn element_wise_div() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
+            let divided = tensor1.div(&tensor2)?;
+            assert_eq!(divided.read()?, vec![0.5, 2.0 / 3.0, 0.75]);
+            Ok(())
+        }
+
+        #[test]
+        fn exp() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let exp = tensor.exp()?;
+            let exp_vec = exp.read()?;
+            assert_relative_eq!(exp_vec[0], 2.7182817);
+            Ok(())
+        }
+
+        #[test]
+        fn log() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let log = tensor.log()?;
+            let log_vec = log.read()?;
+            assert_relative_eq!(log_vec[0], 1.0f64.ln());
+            assert_relative_eq!(log_vec[1], 2.0f64.ln());
+            assert_relative_eq!(log_vec[2], 3.0f64.ln());
+            Ok(())
+        }
+
+        #[test]
+        fn cos() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let cos = tensor.cos()?;
+            let cos_vec = cos.read()?;
+            assert_relative_eq!(cos_vec[0], 0.5403023);
+            Ok(())
+        }
+        #[test]
+        fn sin() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let sin = tensor.sin()?;
+            let sin_vec = sin.read()?;
+            assert_relative_eq!(sin_vec[0], 0.8414709);
+            Ok(())
+        }
+
+        #[test]
+        fn dot_product() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
+            let dot = tensor1.dot(&tensor2)?;
+            assert_relative_eq!(dot.read()?, 20.0);
+            Ok(())
+        }
+
+        #[test]
+        fn outer_product() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = ColumnVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
+            let outer = tensor1.outer(&tensor2)?;
+            let outer_vec = outer.read()?;
+            assert_eq!(outer_vec[0], vec![2.0, 3.0, 4.0]);
+            assert_eq!(outer_vec[1], vec![4.0, 6.0, 8.0]);
+            assert_eq!(outer_vec[2], vec![6.0, 9.0, 12.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn where_condition() -> Result<()> {
+            let device = Device::Cpu;
+            let cond = RowVector::<u8, 3>::new(&[1, 0, 1], &device)?;
+            let on_true = RowVector::<u8, 3>::new(&[1, 1, 1], &device)?;
+            let on_false = RowVector::<u8, 3>::new(&[2, 2, 2], &device)?;
+            let result = cond.where_cond(&on_true, &on_false)?;
+            assert_eq!(result.read()?, vec![1, 2, 1]);
+            Ok(())
+        }
+        #[test]
+        fn neg() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let neg = tensor.neg()?;
+            assert_eq!(neg.read()?, vec![-1.0, -2.0, -3.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn abs() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[-1.0, 2.0, -3.0], &device)?;
+            let abs = tensor.abs()?;
+            assert_eq!(abs.read()?, vec![1.0, 2.0, 3.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn tanh() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[0.0, 1.0, 2.0], &device)?;
+            let tanh = tensor.tanh()?;
+            let tanh_vec = tanh.read()?;
+            assert_relative_eq!(tanh_vec[0], 0.0);
+            assert_relative_eq!(tanh_vec[1], 0.7615942);
+            assert_relative_eq!(tanh_vec[2], 0.9640276);
+            Ok(())
+        }
+
+        #[test]
+        fn powf() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let powered = tensor.powf(2.0)?;
+            assert_eq!(powered.read()?, vec![1.0, 4.0, 9.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn element_wise_pow() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let tensor2 = RowVector::<f32, 3>::new(&[2.0, 2.0, 2.0], &device)?;
+            let powered = tensor1.pow(&tensor2)?;
+            assert_eq!(powered.read()?, vec![1.0, 4.0, 9.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn sinh() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[0.0, 1.0, -1.0], &device)?;
+            let sinh = tensor.sinh()?;
+            let sinh_vec = sinh.read()?;
+            assert_relative_eq!(sinh_vec[0], 0.0);
+            assert_relative_eq!(sinh_vec[1], 1.1752012);
+            assert_relative_eq!(sinh_vec[2], -1.1752012);
+            Ok(())
+        }
+
+        #[test]
+        fn cosh() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[0.0, 1.0, -1.0], &device)?;
+            let cosh = tensor.cosh()?;
+            let cosh_vec = cosh.read()?;
+            assert_relative_eq!(cosh_vec[0], 1.0);
+            assert_relative_eq!(cosh_vec[1], 1.5430806);
+            assert_relative_eq!(cosh_vec[2], 1.5430806);
+            Ok(())
+        }
+
+        #[test]
+        fn transpose() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let transposed = tensor.transpose()?;
+            let trans_vec = transposed.read()?;
+            assert_eq!(trans_vec, vec![1.0, 2.0, 3.0]);
+            Ok(())
+        }
+
+        #[test]
+        #[should_panic]
+        fn invalid_size() {
+            let device = Device::Cpu;
+            let data: Vec<f32> = vec![1.0, 2.0]; // Wrong size (2 instead of 3)
+            let _tensor = RowVector::<f32, 3>::new(&data, &device).unwrap();
+        }
+
+        #[test]
+        fn multiple_operations_chain() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let result = tensor.mul_scalar(2.0)?.add_scalar(1.0)?.pow_scalar(2.0)?;
+            assert_relative_eq_vec(result.read()?, vec![9.0, 25.0, 49.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn different_dtypes() -> Result<()> {
+            let device = Device::Cpu;
+
+            // Test with f64
+            let tensor_f64 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            assert_eq!(tensor_f64.0.dtype(), DType::F64);
+
+            // Test with f32
+            let tensor_f32 = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            assert_eq!(tensor_f32.0.dtype(), DType::F32);
+
+            Ok(())
+        }
+
+        #[test]
+        fn edge_cases() -> Result<()> {
+            let device = Device::Cpu;
+
+            // Test with very large numbers
+            let large = RowVector::<f32, 3>::new(&[1e38, 1e38, 1e38], &device)?;
+            let large_mul = large.mul_scalar(2.0)?;
+            assert_relative_eq!(
+                large_mul.read()?[0],
+                200000000000000000000000000000000000000f32
+            );
+
+            // Test with very small numbers
+            let small = RowVector::<f32, 3>::new(&[1e-38, 1e-38, 1e-38], &device)?;
+            let small_div = small.div_scalar(2.0)?;
+            assert!(small_div.read()?[0] != 0.0);
+
+            // Test with zero division
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+            let zero = RowVector::<f32, 3>::zeros(&device)?;
+            let div_zero = tensor.div(&zero)?;
+            assert!(div_zero.read()?[0].is_infinite());
+
+            Ok(())
+        }
+
+        #[test]
+        fn broadcasting_behavior() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
+
+            // Test broadcasting with scalar operations
+            let scalar_add = tensor.add_scalar(1.0)?;
+            let scalar_mul = tensor.mul_scalar(2.0)?;
+
+            assert_eq!(scalar_add.0.shape().dims(), [1, 3]);
+            assert_eq!(scalar_mul.0.shape().dims(), [1, 3]);
+            assert_eq!(scalar_add.read()?, vec![2.0, 3.0, 4.0]);
+            assert_eq!(scalar_mul.read()?, vec![2.0, 4.0, 6.0]);
+
+            Ok(())
         }
     }
 }
@@ -1410,6 +1837,329 @@ mod matrix {
                 Tensor::rand(low, high, Self::shape(), device)?,
                 PhantomData,
             ))
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use crate::*;
+        use approx::assert_relative_eq;
+        use candle_core::{Device, Result};
+        use operands::test::assert_relative_eq_vec_vec;
+
+        #[test]
+        fn new_tensor2d() -> Result<()> {
+            let device = Device::Cpu;
+            let data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let tensor = Matrix::<f64, 2, 3>::new(&data, &device)?;
+            assert_eq!(tensor.0.shape().dims(), [2, 3]);
+            let values = tensor.read()?;
+            assert_eq!(values, vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn zeros() -> Result<()> {
+            let device = Device::Cpu;
+            let zeros = Matrix::<f64, 2, 3>::zeros(&device)?;
+            let values = zeros.read()?;
+            assert_eq!(values, vec![vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn ones() -> Result<()> {
+            let device = Device::Cpu;
+            let ones = Matrix::<f64, 2, 3>::ones(&device)?;
+            let values = ones.read()?;
+            assert_eq!(values, vec![vec![1.0, 1.0, 1.0], vec![1.0, 1.0, 1.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn ones_neg() -> Result<()> {
+            let device = Device::Cpu;
+            let ones_neg = Matrix::<f64, 2, 3>::ones_neg(&device)?;
+            let values = ones_neg.read()?;
+            assert_eq!(values, vec![vec![-1.0, -1.0, -1.0], vec![-1.0, -1.0, -1.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn neg() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let neg = tensor.neg()?;
+            let values = neg.read()?;
+            assert_eq!(values, vec![vec![-1.0, -2.0], vec![-3.0, -4.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn abs() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[-1.0, -2.0, 3.0, -4.0], &device)?;
+            let abs = tensor.abs()?;
+            let values = abs.read()?;
+            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+            Ok(())
+        }
+        #[test]
+        fn add_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let result = tensor.add_scalar(2.0)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![3.0, 4.0], vec![5.0, 6.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn sub_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let result = tensor.sub_scalar(1.0)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![0.0, 1.0], vec![2.0, 3.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn mul_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let result = tensor.mul_scalar(2.0)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![2.0, 4.0], vec![6.0, 8.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn div_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[2.0, 4.0, 6.0, 8.0], &device)?;
+            let result = tensor.div_scalar(2.0)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn pow_scalar() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f32, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let result = tensor.pow_scalar(2.0)?;
+            let values = result.read()?;
+            assert_relative_eq_vec_vec(values, vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
+            Ok(())
+        }
+
+        // Part 3: Element-wise Operations Tests
+
+        #[test]
+        fn add() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let tensor2 = Matrix::<f64, 2, 2>::new(&[1.0, 1.0, 1.0, 1.0], &device)?;
+            let result = tensor1.add(&tensor2)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![2.0, 3.0], vec![4.0, 5.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn sub() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = Matrix::<f64, 2, 2>::new(&[2.0, 3.0, 4.0, 5.0], &device)?;
+            let tensor2 = Matrix::<f64, 2, 2>::new(&[1.0, 1.0, 1.0, 1.0], &device)?;
+            let result = tensor1.sub(&tensor2)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn mul() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let tensor2 = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
+            let result = tensor1.mul(&tensor2)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![2.0, 4.0], vec![6.0, 8.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn div() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = Matrix::<f64, 2, 2>::new(&[2.0, 4.0, 6.0, 8.0], &device)?;
+            let tensor2 = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
+            let result = tensor1.div(&tensor2)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn element_wise_pow() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let tensor2 = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
+            let result = tensor1.pow(&tensor2)?;
+            let values = result.read()?;
+            assert_relative_eq_vec_vec(values, vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
+            Ok(())
+        }
+        #[test]
+        fn matmul() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor1 = Matrix::<f64, 2, 3>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &device)?;
+            let tensor2 = Matrix::<f64, 3, 2>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &device)?;
+            let result = tensor1.matmul(&tensor2)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![22.0, 28.0], vec![49.0, 64.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn transpose() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 3>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &device)?;
+            let transposed = tensor.transpose()?;
+            let values = transposed.read()?;
+            assert_eq!(values, vec![vec![1.0, 4.0], vec![2.0, 5.0], vec![3.0, 6.0]]);
+            Ok(())
+        }
+
+        // Part 5: Transcendental Functions Tests
+
+        #[test]
+        fn exp() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, 0.5, 2.0], &device)?;
+            let result = tensor.exp()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 1.0);
+            assert_relative_eq!(values[0][1], 2.718281828459045);
+            assert_relative_eq!(values[1][0], 1.6487212707001282);
+            assert_relative_eq!(values[1][1], 7.38905609893065);
+            Ok(())
+        }
+
+        #[test]
+        fn log() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 4.0, 8.0], &device)?;
+            let result = tensor.log()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 0.0);
+            assert_relative_eq!(values[0][1], 0.6931471805599453);
+            assert_relative_eq!(values[1][0], 1.3862943611198906);
+            assert_relative_eq!(values[1][1], 2.0794415416798357);
+            Ok(())
+        }
+
+        #[test]
+        fn sin() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(
+                &[
+                    0.0,
+                    std::f64::consts::PI / 2.0,
+                    std::f64::consts::PI,
+                    3.0 * std::f64::consts::PI / 2.0,
+                ],
+                &device,
+            )?;
+            let result = tensor.sin()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 0.0);
+            assert_relative_eq!(values[0][1], 1.0);
+            assert_relative_eq!(values[1][0], 0.0);
+            assert_relative_eq!(values[1][1], -1.0);
+            Ok(())
+        }
+
+        #[test]
+        fn cos() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(
+                &[
+                    0.0,
+                    std::f64::consts::PI / 2.0,
+                    std::f64::consts::PI,
+                    3.0 * std::f64::consts::PI / 2.0,
+                ],
+                &device,
+            )?;
+            let result = tensor.cos()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 1.0);
+            assert_relative_eq!(values[0][1], 0.0);
+            assert_relative_eq!(values[1][0], -1.0);
+            assert_relative_eq!(values[1][1], 0.0);
+            Ok(())
+        }
+
+        #[test]
+        fn sinh() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, -1.0, 2.0], &device)?;
+            let result = tensor.sinh()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 0.0);
+            assert_relative_eq!(values[0][1], 1.1752011936438014);
+            assert_relative_eq!(values[1][0], -1.1752011936438014);
+            assert_relative_eq!(values[1][1], 3.626860407847019);
+            Ok(())
+        }
+
+        #[test]
+        fn cosh() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, -1.0, 2.0], &device)?;
+            let result = tensor.cosh()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 1.0);
+            assert_relative_eq!(values[0][1], 1.5430806348152437);
+            assert_relative_eq!(values[1][0], 1.5430806348152437);
+            assert_relative_eq!(values[1][1], 3.7621956910836314);
+            Ok(())
+        }
+
+        #[test]
+        fn tanh() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, -1.0, 2.0], &device)?;
+            let result = tensor.tanh()?;
+            let values = result.read()?;
+            assert_relative_eq!(values[0][0], 0.0);
+            assert_relative_eq!(values[0][1], 0.7615941559557649);
+            assert_relative_eq!(values[1][0], -0.7615941559557649);
+            assert_relative_eq!(values[1][1], 0.9640275800758169);
+            Ok(())
+        }
+
+        #[test]
+        fn powf() -> Result<()> {
+            let device = Device::Cpu;
+            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
+            let result = tensor.powf(2.0)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
+            Ok(())
+        }
+
+        #[test]
+        fn where_cond() -> Result<()> {
+            let device = Device::Cpu;
+            let condition = Matrix::<u8, 2, 2>::new(&[1, 0, 1, 0], &device)?;
+            let on_true = Matrix::<f64, 2, 2>::new(&[1.0, 1.0, 1.0, 1.0], &device)?;
+            let on_false = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
+            let result = condition.where_cond(&on_true, &on_false)?;
+            let values = result.read()?;
+            assert_eq!(values, vec![vec![1.0, 2.0], vec![1.0, 2.0]]);
+            Ok(())
         }
     }
 }
@@ -2416,6 +3166,244 @@ mod complex_row_vector {
                 real: self.real.mul(rhs)?,
                 imag: self.imag.mul(rhs)?,
             })
+        }
+    }
+    #[cfg(test)]
+    mod test {
+        use crate::*;
+        use approx::assert_relative_eq;
+        use candle_core::{Device, Result};
+        use operands::test::assert_relative_eq_vec;
+        use std::f64::consts::PI;
+
+        #[test]
+        fn new_complex_tensor() -> Result<()> {
+            let device = Device::Cpu;
+            let real = vec![1.0, 2.0, 3.0];
+            let imag = vec![4.0, 5.0, 6.0];
+            let tensor = ComplexRowVector::<f64, 3>::new(&real, &imag, &device)?;
+            assert_eq!(tensor.real.read()?, real);
+            assert_eq!(tensor.imag.read()?, imag);
+            Ok(())
+        }
+
+        #[test]
+        fn zeros() -> Result<()> {
+            let device = Device::Cpu;
+            let zeros = ComplexRowVector::<f64, 3>::zeros(&device)?;
+            assert_eq!(zeros.real.read()?, vec![0.0, 0.0, 0.0]);
+            assert_eq!(zeros.imag.read()?, vec![0.0, 0.0, 0.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn ones() -> Result<()> {
+            let device = Device::Cpu;
+            let ones = ComplexRowVector::<f64, 3>::ones(&device)?;
+            assert_eq!(ones.real.read()?, vec![1.0, 1.0, 1.0]);
+            assert_eq!(ones.imag.read()?, vec![0.0, 0.0, 0.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn ones_neg() -> Result<()> {
+            let device = Device::Cpu;
+            let ones_neg = ComplexRowVector::<f64, 3>::ones_neg(&device)?;
+            assert_eq!(ones_neg.real.read()?, vec![-1.0, -1.0, -1.0]);
+            assert_eq!(ones_neg.imag.read()?, vec![0.0, 0.0, 0.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn add() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
+            let b = ComplexRowVector::<f64, 2>::new(&[5.0, 6.0], &[7.0, 8.0], &device)?;
+            let c = a.add(&b)?;
+            assert_eq!(c.real.read()?, vec![6.0, 8.0]);
+            assert_eq!(c.imag.read()?, vec![10.0, 12.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn sub() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
+            let b = ComplexRowVector::<f64, 2>::new(&[5.0, 6.0], &[7.0, 8.0], &device)?;
+            let c = a.sub(&b)?;
+            assert_eq!(c.real.read()?, vec![-4.0, -4.0]);
+            assert_eq!(c.imag.read()?, vec![-4.0, -4.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn mul() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[1.0, 1.0], &device)?;
+            let b = ComplexRowVector::<f64, 2>::new(&[2.0, 3.0], &[1.0, 1.0], &device)?;
+            let c = a.mul(&b)?;
+            // (1 + i)(2 + i) = (2 - 1) + (2 + 1)i = 1 + 3i
+            // (2 + i)(3 + i) = (6 - 1) + (3 + 2)i = 5 + 5i
+            assert_relative_eq_vec(c.real.read()?, vec![1.0, 5.0]);
+            assert_relative_eq_vec(c.imag.read()?, vec![3.0, 5.0]);
+            Ok(())
+        }
+        #[test]
+        fn div_pure_real() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[4.0], &[0.0], &device)?;
+            let b = ComplexRowVector::<f64, 1>::new(&[2.0], &[0.0], &device)?;
+            let c = a.div(&b)?;
+            // (4 + 2i)/(2 + i) = (10 + 0i)/5 = 2 + 0i
+            let real = c.real.read()?;
+            let imag = c.imag.read()?;
+            assert_relative_eq!(real[0], 2.0);
+            assert_relative_eq!(imag[0], 0.0);
+            Ok(())
+        }
+        #[test]
+        fn div_pure_imag() -> Result<()> {
+            // Case 1: i/i = 1
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[1.0], &device)?;
+            let b = ComplexRowVector::<f64, 1>::new(&[0.0], &[1.0], &device)?;
+            let c = a.div(&b)?;
+            assert_relative_eq!(c.real.read()?[0], 1.0);
+            assert_relative_eq!(c.imag.read()?[0], 0.0);
+            Ok(())
+        }
+        #[test]
+        fn div_unit_circle() -> Result<()> {
+            // Case 2: (1 + i)/(1 - i) = 0 + i
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[1.0], &[1.0], &device)?;
+            let b = ComplexRowVector::<f64, 1>::new(&[1.0], &[-1.0], &device)?;
+            let c = a.div(&b)?;
+            assert_relative_eq!(c.real.read()?[0], 0.0);
+            assert_relative_eq!(c.imag.read()?[0], 1.0);
+            Ok(())
+        }
+        #[test]
+        fn div_psychotic() -> Result<()> {
+            // Case 3: (3 + 4i)/(2 + 2i) = 1.75 + 0.25i
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[3.0], &[4.0], &device)?;
+            let b = ComplexRowVector::<f64, 1>::new(&[2.0], &[2.0], &device)?;
+            let c = a.div(&b)?;
+            assert_relative_eq!(c.real.read()?[0], 1.75);
+            assert_relative_eq!(c.imag.read()?[0], 0.25);
+
+            Ok(())
+        }
+
+        #[test]
+        fn exp() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[PI / 2.0], &device)?;
+            let c = a.exp()?;
+            // e^(iπ/2) = i
+            let real = c.real.read()?;
+            let imag = c.imag.read()?;
+            assert_relative_eq!(real[0], 0.0);
+            assert_relative_eq!(imag[0], 1.0);
+            Ok(())
+        }
+
+        #[test]
+        fn log() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[1.0], &device)?;
+            let c = a.log()?;
+            // ln(i) = iπ/2
+            let real = c.real.read()?;
+            let imag = c.imag.read()?;
+            assert_relative_eq!(real[0], 0.0);
+            assert_relative_eq!(imag[0], PI / 2.0);
+            Ok(())
+        }
+
+        #[test]
+        fn conj() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
+            let c = a.conj()?;
+            assert_eq!(c.real.read()?, vec![1.0, 2.0]);
+            assert_eq!(c.imag.read()?, vec![-3.0, -4.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn abs() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 2>::new(&[3.0, 0.0], &[4.0, 1.0], &device)?;
+            let c = UnaryOp::abs(&a)?;
+            // |3 + 4i| = 5, |0 + i| = 1
+            assert_eq!(c.real()?.read()?, vec![5.0, 1.0]); // Correct: Accessing c.real
+            assert_eq!(c.imaginary()?.read()?, vec![0.0, 0.0]); // Correct: Verifying imaginary part is zero
+            Ok(())
+        }
+
+        #[test]
+        fn where_cond() -> Result<()> {
+            let device = Device::Cpu;
+            let cond = RowVector::<u8, 2>::new(&[1, 0], &device)?;
+            let on_true = ComplexRowVector::<f64, 2>::new(&[1.0, 1.0], &[1.0, 1.0], &device)?;
+            let on_false = ComplexRowVector::<f64, 2>::new(&[2.0, 2.0], &[2.0, 2.0], &device)?;
+            let result = cond.where_cond_complex(&on_true, &on_false)?;
+            assert_eq!(result.real.read()?, vec![1.0, 2.0]);
+            assert_eq!(result.imag.read()?, vec![1.0, 2.0]);
+            Ok(())
+        }
+
+        #[test]
+        fn scalar_operations() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
+
+            // Test add_scalar
+            let add_result = a.add_scalar(2.0)?;
+            assert_eq!(add_result.real.read()?, vec![3.0, 4.0]);
+            assert_eq!(add_result.imag.read()?, vec![3.0, 4.0]);
+
+            // Test mul_scalar
+            let mul_result = a.mul_scalar(2.0)?;
+            assert_eq!(mul_result.real.read()?, vec![2.0, 4.0]);
+            assert_eq!(mul_result.imag.read()?, vec![6.0, 8.0]);
+
+            // Test div_scalar
+            let div_result = a.div_scalar(2.0)?;
+            assert_eq!(div_result.real.read()?, vec![0.5, 1.0]);
+            assert_eq!(div_result.imag.read()?, vec![1.5, 2.0]);
+
+            Ok(())
+        }
+
+        #[test]
+        fn transcendental_functions() -> Result<()> {
+            let device = Device::Cpu;
+            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[PI / 2.0], &device)?;
+
+            // Test sin
+            let sin_result = a.sin()?;
+            let sin_real = sin_result.real.read()?;
+            let sin_imag = sin_result.imag.read()?;
+            assert_relative_eq!(sin_real[0], 0.0);
+
+            // Test cos
+            let cos_result = a.cos()?;
+            let cos_real = cos_result.real.read()?;
+            let cos_imag = cos_result.imag.read()?;
+            assert_relative_eq!(cos_real[0], 2.5091784786580567);
+
+            // Test sinh
+            let sinh_result = a.sinh()?;
+            let sinh_real = sinh_result.real.read()?;
+
+            // Test cosh
+            let cosh_result = a.cosh()?;
+            let cosh_real = cosh_result.real.read()?;
+            assert_relative_eq!(cosh_real[0], 0.0);
+            Ok(())
         }
     }
 }
@@ -3542,1031 +4530,15 @@ mod complex_matrix {
             })
         }
     }
-}
-
-pub use {
-    column_vector::ColumnVector, complex_column_vector::ComplexColumnVector,
-    complex_matrix::ComplexMatrix, complex_row_vector::ComplexRowVector,
-    complex_scalar::ComplexScalar, matrix::Matrix, row_vector::RowVector, scalar::Scalar,
-};
-
-#[cfg(test)]
-mod test {
-
-    use approx::{assert_relative_eq, RelativeEq};
-    use candle_core::{DType, Device, Result};
-    use std::fmt::Debug;
-    fn assert_relative_eq_vec<T: RelativeEq + Debug>(lhs: Vec<T>, rhs: Vec<T>) {
-        lhs.iter()
-            .zip(rhs)
-            .for_each(|(l, r)| assert_relative_eq!(l, &r));
-    }
-    fn assert_relative_eq_vec_vec<T: RelativeEq + Debug>(lhs: Vec<Vec<T>>, rhs: Vec<Vec<T>>) {
-        lhs.iter()
-            .flatten()
-            .zip(rhs.iter().flatten())
-            .for_each(|(l, r)| assert_relative_eq!(l, &r));
-    }
-
     #[cfg(test)]
-    mod scalar {
-        use crate::*;
-        use candle_core::{Device, Result};
-
-        #[test]
-        fn test_scalar_logical_and() -> Result<()> {
-            let device = Device::Cpu;
-            let a = Scalar::<u8>::new(1, &device)?;
-            let b = Scalar::<u8>::new(0, &device)?;
-            let c = Scalar::<u8>::new(1, &device)?;
-
-            assert_eq!(a.and(&a)?.read()?, 1);
-            assert_eq!(a.and(&b)?.read()?, 0);
-            assert_eq!(b.and(&a)?.read()?, 0);
-            assert_eq!(b.and(&b)?.read()?, 0);
-            assert_eq!(a.and(&c)?.read()?, 1);
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_scalar_logical_or() -> Result<()> {
-            let device = Device::Cpu;
-            let a = Scalar::<u8>::new(1, &device)?;
-            let b = Scalar::<u8>::new(0, &device)?;
-            let c = Scalar::<u8>::new(1, &device)?;
-
-            assert_eq!(a.or(&a)?.read()?, 1);
-            assert_eq!(a.or(&b)?.read()?, 1);
-            assert_eq!(b.or(&a)?.read()?, 1);
-            assert_eq!(b.or(&b)?.read()?, 0);
-            assert_eq!(a.or(&c)?.read()?, 1);
-            // Test overflow case
-            let x: Scalar<u8> = Scalar::<u8>::new(255, &device)?;
-            let y = Scalar::<u8>::new(1, &device)?;
-            assert_eq!(x.or(&y)?.read()?, 1);
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_scalar_logical_xor() -> Result<()> {
-            let device = Device::Cpu;
-            let a = Scalar::<u8>::new(1, &device)?;
-            let b = Scalar::<u8>::new(0, &device)?;
-            let c = Scalar::<u8>::new(1, &device)?;
-
-            assert_eq!(a.xor(&a)?.read()?, 0);
-            assert_eq!(a.xor(&b)?.read()?, 1);
-            assert_eq!(b.xor(&a)?.read()?, 1);
-            assert_eq!(b.xor(&b)?.read()?, 0);
-            assert_eq!(a.xor(&c)?.read()?, 0);
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_scalar_logical_not() -> Result<()> {
-            let device = Device::Cpu;
-            let a = Scalar::<u8>::new(1, &device)?;
-            let b = Scalar::<u8>::new(0, &device)?;
-
-            assert_eq!(a.not()?.read()?, 0);
-            assert_eq!(b.not()?.read()?, 1);
-
-            Ok(())
-        }
-    }
-
-    #[cfg(test)]
-    mod tensor1d {
-
-        use crate::*;
-        use approx::assert_relative_eq;
-        use candle_core::{DType, Device, Result};
-
-        use super::assert_relative_eq_vec;
-
-        #[test]
-        fn test_new_tensor1d() -> Result<()> {
-            let device = Device::Cpu;
-            let data: Vec<f64> = vec![1.0, 2.0, 3.0];
-            let tensor = RowVector::<f64, 3>::new(&data, &device)?;
-            assert_eq!(tensor.0.shape().dims(), [1, 3]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_zeros() -> Result<()> {
-            let device = Device::Cpu;
-            let zeros = RowVector::<f64, 3>::zeros(&device)?;
-            assert_eq!(zeros.read()?, vec![0.0, 0.0, 0.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_ones() -> Result<()> {
-            let device = Device::Cpu;
-            let ones = RowVector::<f64, 3>::ones(&device)?;
-            assert_eq!(ones.read()?, vec![1.0, 1.0, 1.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_ones_neg() -> Result<()> {
-            let device = Device::Cpu;
-            let ones_neg = RowVector::<f64, 3>::ones_neg(&device)?;
-            assert_eq!(ones_neg.read()?, vec![-1.0, -1.0, -1.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_add_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let added = tensor.add_scalar(2.0)?;
-            assert_eq!(added.read()?, vec![3.0, 4.0, 5.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sub_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let subbed = tensor.sub_scalar(1.0)?;
-            assert_eq!(subbed.read()?, vec![0.0, 1.0, 2.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_mul_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let mulled = tensor.mul_scalar(3.0)?;
-            assert_eq!(mulled.read()?, vec![3.0, 6.0, 9.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_div_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let divided = tensor.div_scalar(2.0)?;
-            assert_eq!(divided.read()?, vec![0.5, 1.0, 1.5]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_pow_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let powered = tensor.pow_scalar(2.0)?;
-            assert_eq!(powered.read()?, vec![1.0, 4.0, 9.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_element_wise_add() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
-            let added = tensor1.add(&tensor2)?;
-            assert_eq!(added.read()?, vec![3.0, 5.0, 7.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_element_wise_sub() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
-            let subbed = tensor1.sub(&tensor2)?;
-            assert_eq!(subbed.read()?, vec![-1.0, -1.0, -1.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_element_wise_mul() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
-            let mulled = tensor1.mul(&tensor2)?;
-            assert_eq!(mulled.read()?, vec![2.0, 6.0, 12.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_element_wise_div() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
-            let divided = tensor1.div(&tensor2)?;
-            assert_eq!(divided.read()?, vec![0.5, 2.0 / 3.0, 0.75]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_exp() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let exp = tensor.exp()?;
-            let exp_vec = exp.read()?;
-            assert_relative_eq!(exp_vec[0], 2.7182817);
-            Ok(())
-        }
-
-        #[test]
-        fn test_log() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let log = tensor.log()?;
-            let log_vec = log.read()?;
-            assert_relative_eq!(log_vec[0], 0.0);
-            Ok(())
-        }
-
-        #[test]
-        fn test_cos() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let cos = tensor.cos()?;
-            let cos_vec = cos.read()?;
-            assert_relative_eq!(cos_vec[0], 0.5403023);
-            Ok(())
-        }
-        #[test]
-        fn test_sin() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let sin = tensor.sin()?;
-            let sin_vec = sin.read()?;
-            assert_relative_eq!(sin_vec[0], 0.8414709);
-            Ok(())
-        }
-
-        #[test]
-        fn test_dot_product() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
-            let dot = tensor1.dot(&tensor2)?;
-            assert_relative_eq!(dot.read()?, 20.0);
-            Ok(())
-        }
-
-        #[test]
-        fn test_outer_product() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = ColumnVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f64, 3>::new(&[2.0, 3.0, 4.0], &device)?;
-            let outer = tensor1.outer(&tensor2)?;
-            let outer_vec = outer.read()?;
-            assert_eq!(outer_vec[0], vec![2.0, 3.0, 4.0]);
-            assert_eq!(outer_vec[1], vec![4.0, 6.0, 8.0]);
-            assert_eq!(outer_vec[2], vec![6.0, 9.0, 12.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_where_condition() -> Result<()> {
-            let device = Device::Cpu;
-            let cond = RowVector::<u8, 3>::new(&[1, 0, 1], &device)?;
-            let on_true = RowVector::<u8, 3>::new(&[1, 1, 1], &device)?;
-            let on_false = RowVector::<u8, 3>::new(&[2, 2, 2], &device)?;
-            let result = cond.where_cond(&on_true, &on_false)?;
-            assert_eq!(result.read()?, vec![1, 2, 1]);
-            Ok(())
-        }
-        #[test]
-        fn test_neg() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let neg = tensor.neg()?;
-            assert_eq!(neg.read()?, vec![-1.0, -2.0, -3.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_abs() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[-1.0, 2.0, -3.0], &device)?;
-            let abs = tensor.abs()?;
-            assert_eq!(abs.read()?, vec![1.0, 2.0, 3.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_tanh() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[0.0, 1.0, 2.0], &device)?;
-            let tanh = tensor.tanh()?;
-            let tanh_vec = tanh.read()?;
-            assert_relative_eq!(tanh_vec[0], 0.0);
-            assert_relative_eq!(tanh_vec[1], 0.7615942);
-            assert_relative_eq!(tanh_vec[2], 0.9640276);
-            Ok(())
-        }
-
-        #[test]
-        fn test_powf() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let powered = tensor.powf(2.0)?;
-            assert_eq!(powered.read()?, vec![1.0, 4.0, 9.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_element_wise_pow() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let tensor2 = RowVector::<f32, 3>::new(&[2.0, 2.0, 2.0], &device)?;
-            let powered = tensor1.pow(&tensor2)?;
-            assert_eq!(powered.read()?, vec![1.0, 4.0, 9.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sinh() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[0.0, 1.0, -1.0], &device)?;
-            let sinh = tensor.sinh()?;
-            let sinh_vec = sinh.read()?;
-            assert_relative_eq!(sinh_vec[0], 0.0);
-            assert_relative_eq!(sinh_vec[1], 1.1752012);
-            assert_relative_eq!(sinh_vec[2], -1.1752012);
-            Ok(())
-        }
-
-        #[test]
-        fn test_cosh() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[0.0, 1.0, -1.0], &device)?;
-            let cosh = tensor.cosh()?;
-            let cosh_vec = cosh.read()?;
-            assert_relative_eq!(cosh_vec[0], 1.0);
-            assert_relative_eq!(cosh_vec[1], 1.5430806);
-            assert_relative_eq!(cosh_vec[2], 1.5430806);
-            Ok(())
-        }
-
-        #[test]
-        fn test_transpose() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let transposed = tensor.transpose()?;
-            let trans_vec = transposed.read()?;
-            assert_eq!(trans_vec, vec![1.0, 2.0, 3.0]);
-            Ok(())
-        }
-
-        #[test]
-        #[should_panic]
-        fn test_invalid_size() {
-            let device = Device::Cpu;
-            let data: Vec<f32> = vec![1.0, 2.0]; // Wrong size (2 instead of 3)
-            let _tensor = RowVector::<f32, 3>::new(&data, &device).unwrap();
-        }
-
-        #[test]
-        fn test_multiple_operations_chain() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let result = tensor.mul_scalar(2.0)?.add_scalar(1.0)?.pow_scalar(2.0)?;
-            assert_relative_eq_vec(result.read()?, vec![9.0, 25.0, 49.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_different_dtypes() -> Result<()> {
-            let device = Device::Cpu;
-
-            // Test with f64
-            let tensor_f64 = RowVector::<f64, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            assert_eq!(tensor_f64.0.dtype(), DType::F64);
-
-            // Test with f32
-            let tensor_f32 = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            assert_eq!(tensor_f32.0.dtype(), DType::F32);
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_edge_cases() -> Result<()> {
-            let device = Device::Cpu;
-
-            // Test with very large numbers
-            let large = RowVector::<f32, 3>::new(&[1e38, 1e38, 1e38], &device)?;
-            let large_mul = large.mul_scalar(2.0)?;
-            assert_relative_eq!(
-                large_mul.read()?[0],
-                200000000000000000000000000000000000000f32
-            );
-
-            // Test with very small numbers
-            let small = RowVector::<f32, 3>::new(&[1e-38, 1e-38, 1e-38], &device)?;
-            let small_div = small.div_scalar(2.0)?;
-            assert!(small_div.read()?[0] != 0.0);
-
-            // Test with zero division
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-            let zero = RowVector::<f32, 3>::zeros(&device)?;
-            let div_zero = tensor.div(&zero)?;
-            assert!(div_zero.read()?[0].is_infinite());
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_broadcasting_behavior() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = RowVector::<f32, 3>::new(&[1.0, 2.0, 3.0], &device)?;
-
-            // Test broadcasting with scalar operations
-            let scalar_add = tensor.add_scalar(1.0)?;
-            let scalar_mul = tensor.mul_scalar(2.0)?;
-
-            assert_eq!(scalar_add.0.shape().dims(), [1, 3]);
-            assert_eq!(scalar_mul.0.shape().dims(), [1, 3]);
-            assert_eq!(scalar_add.read()?, vec![2.0, 3.0, 4.0]);
-            assert_eq!(scalar_mul.read()?, vec![2.0, 4.0, 6.0]);
-
-            Ok(())
-        }
-    }
-    #[cfg(test)]
-    mod tensor2d {
-        use crate::*;
-        use approx::assert_relative_eq;
-        use candle_core::{Device, Result};
-
-        use super::assert_relative_eq_vec_vec;
-
-        #[test]
-        fn test_new_tensor2d() -> Result<()> {
-            let device = Device::Cpu;
-            let data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-            let tensor = Matrix::<f64, 2, 3>::new(&data, &device)?;
-            assert_eq!(tensor.0.shape().dims(), [2, 3]);
-            let values = tensor.read()?;
-            assert_eq!(values, vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_zeros() -> Result<()> {
-            let device = Device::Cpu;
-            let zeros = Matrix::<f64, 2, 3>::zeros(&device)?;
-            let values = zeros.read()?;
-            assert_eq!(values, vec![vec![0.0, 0.0, 0.0], vec![0.0, 0.0, 0.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_ones() -> Result<()> {
-            let device = Device::Cpu;
-            let ones = Matrix::<f64, 2, 3>::ones(&device)?;
-            let values = ones.read()?;
-            assert_eq!(values, vec![vec![1.0, 1.0, 1.0], vec![1.0, 1.0, 1.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_ones_neg() -> Result<()> {
-            let device = Device::Cpu;
-            let ones_neg = Matrix::<f64, 2, 3>::ones_neg(&device)?;
-            let values = ones_neg.read()?;
-            assert_eq!(values, vec![vec![-1.0, -1.0, -1.0], vec![-1.0, -1.0, -1.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_neg() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let neg = tensor.neg()?;
-            let values = neg.read()?;
-            assert_eq!(values, vec![vec![-1.0, -2.0], vec![-3.0, -4.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_abs() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[-1.0, -2.0, 3.0, -4.0], &device)?;
-            let abs = tensor.abs()?;
-            let values = abs.read()?;
-            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
-            Ok(())
-        }
-        #[test]
-        fn test_add_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let result = tensor.add_scalar(2.0)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![3.0, 4.0], vec![5.0, 6.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sub_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let result = tensor.sub_scalar(1.0)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![0.0, 1.0], vec![2.0, 3.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_mul_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let result = tensor.mul_scalar(2.0)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![2.0, 4.0], vec![6.0, 8.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_div_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[2.0, 4.0, 6.0, 8.0], &device)?;
-            let result = tensor.div_scalar(2.0)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_pow_scalar() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f32, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let result = tensor.pow_scalar(2.0)?;
-            let values = result.read()?;
-            assert_relative_eq_vec_vec(values, vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
-            Ok(())
-        }
-
-        // Part 3: Element-wise Operations Tests
-
-        #[test]
-        fn test_add() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let tensor2 = Matrix::<f64, 2, 2>::new(&[1.0, 1.0, 1.0, 1.0], &device)?;
-            let result = tensor1.add(&tensor2)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![2.0, 3.0], vec![4.0, 5.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sub() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = Matrix::<f64, 2, 2>::new(&[2.0, 3.0, 4.0, 5.0], &device)?;
-            let tensor2 = Matrix::<f64, 2, 2>::new(&[1.0, 1.0, 1.0, 1.0], &device)?;
-            let result = tensor1.sub(&tensor2)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_mul() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let tensor2 = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
-            let result = tensor1.mul(&tensor2)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![2.0, 4.0], vec![6.0, 8.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_div() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = Matrix::<f64, 2, 2>::new(&[2.0, 4.0, 6.0, 8.0], &device)?;
-            let tensor2 = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
-            let result = tensor1.div(&tensor2)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_element_wise_pow() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let tensor2 = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
-            let result = tensor1.pow(&tensor2)?;
-            let values = result.read()?;
-            assert_relative_eq_vec_vec(values, vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
-            Ok(())
-        }
-        #[test]
-        fn test_matmul() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor1 = Matrix::<f64, 2, 3>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &device)?;
-            let tensor2 = Matrix::<f64, 3, 2>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &device)?;
-            let result = tensor1.matmul(&tensor2)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![22.0, 28.0], vec![49.0, 64.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_transpose() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 3>::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &device)?;
-            let transposed = tensor.transpose()?;
-            let values = transposed.read()?;
-            assert_eq!(values, vec![vec![1.0, 4.0], vec![2.0, 5.0], vec![3.0, 6.0]]);
-            Ok(())
-        }
-
-        // Part 5: Transcendental Functions Tests
-
-        #[test]
-        fn test_exp() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, 0.5, 2.0], &device)?;
-            let result = tensor.exp()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 1.0);
-            assert_relative_eq!(values[0][1], 2.718281828459045);
-            assert_relative_eq!(values[1][0], 1.6487212707001282);
-            assert_relative_eq!(values[1][1], 7.38905609893065);
-            Ok(())
-        }
-
-        #[test]
-        fn test_log() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 4.0, 8.0], &device)?;
-            let result = tensor.log()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 0.0);
-            assert_relative_eq!(values[0][1], 0.6931471805599453);
-            assert_relative_eq!(values[1][0], 1.3862943611198906);
-            assert_relative_eq!(values[1][1], 2.0794415416798357);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sin() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(
-                &[
-                    0.0,
-                    std::f64::consts::PI / 2.0,
-                    std::f64::consts::PI,
-                    3.0 * std::f64::consts::PI / 2.0,
-                ],
-                &device,
-            )?;
-            let result = tensor.sin()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 0.0);
-            assert_relative_eq!(values[0][1], 1.0);
-            assert_relative_eq!(values[1][0], 0.0);
-            assert_relative_eq!(values[1][1], -1.0);
-            Ok(())
-        }
-
-        #[test]
-        fn test_cos() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(
-                &[
-                    0.0,
-                    std::f64::consts::PI / 2.0,
-                    std::f64::consts::PI,
-                    3.0 * std::f64::consts::PI / 2.0,
-                ],
-                &device,
-            )?;
-            let result = tensor.cos()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 1.0);
-            assert_relative_eq!(values[0][1], 0.0);
-            assert_relative_eq!(values[1][0], -1.0);
-            assert_relative_eq!(values[1][1], 0.0);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sinh() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, -1.0, 2.0], &device)?;
-            let result = tensor.sinh()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 0.0);
-            assert_relative_eq!(values[0][1], 1.1752011936438014);
-            assert_relative_eq!(values[1][0], -1.1752011936438014);
-            assert_relative_eq!(values[1][1], 3.626860407847019);
-            Ok(())
-        }
-
-        #[test]
-        fn test_cosh() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, -1.0, 2.0], &device)?;
-            let result = tensor.cosh()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 1.0);
-            assert_relative_eq!(values[0][1], 1.5430806348152437);
-            assert_relative_eq!(values[1][0], 1.5430806348152437);
-            assert_relative_eq!(values[1][1], 3.7621956910836314);
-            Ok(())
-        }
-
-        #[test]
-        fn test_tanh() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[0.0, 1.0, -1.0, 2.0], &device)?;
-            let result = tensor.tanh()?;
-            let values = result.read()?;
-            assert_relative_eq!(values[0][0], 0.0);
-            assert_relative_eq!(values[0][1], 0.7615941559557649);
-            assert_relative_eq!(values[1][0], -0.7615941559557649);
-            assert_relative_eq!(values[1][1], 0.9640275800758169);
-            Ok(())
-        }
-
-        #[test]
-        fn test_powf() -> Result<()> {
-            let device = Device::Cpu;
-            let tensor = Matrix::<f64, 2, 2>::new(&[1.0, 2.0, 3.0, 4.0], &device)?;
-            let result = tensor.powf(2.0)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![1.0, 4.0], vec![9.0, 16.0]]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_where_cond() -> Result<()> {
-            let device = Device::Cpu;
-            let condition = Matrix::<u8, 2, 2>::new(&[1, 0, 1, 0], &device)?;
-            let on_true = Matrix::<f64, 2, 2>::new(&[1.0, 1.0, 1.0, 1.0], &device)?;
-            let on_false = Matrix::<f64, 2, 2>::new(&[2.0, 2.0, 2.0, 2.0], &device)?;
-            let result = condition.where_cond(&on_true, &on_false)?;
-            let values = result.read()?;
-            assert_eq!(values, vec![vec![1.0, 2.0], vec![1.0, 2.0]]);
-            Ok(())
-        }
-    }
-
-    #[cfg(test)]
-    mod complex_tensor1d {
-        use crate::*;
-        use approx::assert_relative_eq;
-        use candle_core::{Device, Result};
-        use std::f64::consts::PI;
-
-        use super::assert_relative_eq_vec;
-
-        #[test]
-        fn test_new_complex_tensor() -> Result<()> {
-            let device = Device::Cpu;
-            let real = vec![1.0, 2.0, 3.0];
-            let imag = vec![4.0, 5.0, 6.0];
-            let tensor = ComplexRowVector::<f64, 3>::new(&real, &imag, &device)?;
-            assert_eq!(tensor.real.read()?, real);
-            assert_eq!(tensor.imag.read()?, imag);
-            Ok(())
-        }
-
-        #[test]
-        fn test_zeros() -> Result<()> {
-            let device = Device::Cpu;
-            let zeros = ComplexRowVector::<f64, 3>::zeros(&device)?;
-            assert_eq!(zeros.real.read()?, vec![0.0, 0.0, 0.0]);
-            assert_eq!(zeros.imag.read()?, vec![0.0, 0.0, 0.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_ones() -> Result<()> {
-            let device = Device::Cpu;
-            let ones = ComplexRowVector::<f64, 3>::ones(&device)?;
-            assert_eq!(ones.real.read()?, vec![1.0, 1.0, 1.0]);
-            assert_eq!(ones.imag.read()?, vec![0.0, 0.0, 0.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_ones_neg() -> Result<()> {
-            let device = Device::Cpu;
-            let ones_neg = ComplexRowVector::<f64, 3>::ones_neg(&device)?;
-            assert_eq!(ones_neg.real.read()?, vec![-1.0, -1.0, -1.0]);
-            assert_eq!(ones_neg.imag.read()?, vec![0.0, 0.0, 0.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_add() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
-            let b = ComplexRowVector::<f64, 2>::new(&[5.0, 6.0], &[7.0, 8.0], &device)?;
-            let c = a.add(&b)?;
-            assert_eq!(c.real.read()?, vec![6.0, 8.0]);
-            assert_eq!(c.imag.read()?, vec![10.0, 12.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_sub() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
-            let b = ComplexRowVector::<f64, 2>::new(&[5.0, 6.0], &[7.0, 8.0], &device)?;
-            let c = a.sub(&b)?;
-            assert_eq!(c.real.read()?, vec![-4.0, -4.0]);
-            assert_eq!(c.imag.read()?, vec![-4.0, -4.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_mul() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[1.0, 1.0], &device)?;
-            let b = ComplexRowVector::<f64, 2>::new(&[2.0, 3.0], &[1.0, 1.0], &device)?;
-            let c = a.mul(&b)?;
-            // (1 + i)(2 + i) = (2 - 1) + (2 + 1)i = 1 + 3i
-            // (2 + i)(3 + i) = (6 - 1) + (3 + 2)i = 5 + 5i
-            assert_relative_eq_vec(c.real.read()?, vec![1.0, 5.0]);
-            assert_relative_eq_vec(c.imag.read()?, vec![3.0, 5.0]);
-            Ok(())
-        }
-        #[test]
-        fn test_div_pure_real() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[4.0], &[0.0], &device)?;
-            let b = ComplexRowVector::<f64, 1>::new(&[2.0], &[0.0], &device)?;
-            let c = a.div(&b)?;
-            // (4 + 2i)/(2 + i) = (10 + 0i)/5 = 2 + 0i
-            let real = c.real.read()?;
-            let imag = c.imag.read()?;
-            assert_relative_eq!(real[0], 2.0);
-            assert_relative_eq!(imag[0], 0.0);
-            Ok(())
-        }
-        #[test]
-        fn test_div_pure_imag() -> Result<()> {
-            // Case 1: i/i = 1
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[1.0], &device)?;
-            let b = ComplexRowVector::<f64, 1>::new(&[0.0], &[1.0], &device)?;
-            let c = a.div(&b)?;
-            assert_relative_eq!(c.real.read()?[0], 1.0);
-            assert_relative_eq!(c.imag.read()?[0], 0.0);
-            Ok(())
-        }
-        #[test]
-        fn test_div_unit_circle() -> Result<()> {
-            // Case 2: (1 + i)/(1 - i) = 0 + i
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[1.0], &[1.0], &device)?;
-            let b = ComplexRowVector::<f64, 1>::new(&[1.0], &[-1.0], &device)?;
-            let c = a.div(&b)?;
-            assert_relative_eq!(c.real.read()?[0], 0.0);
-            assert_relative_eq!(c.imag.read()?[0], 1.0);
-            Ok(())
-        }
-        #[test]
-        fn test_div_psychotic() -> Result<()> {
-            // Case 3: (3 + 4i)/(2 + 2i) = 1.75 + 0.25i
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[3.0], &[4.0], &device)?;
-            let b = ComplexRowVector::<f64, 1>::new(&[2.0], &[2.0], &device)?;
-            let c = a.div(&b)?;
-            assert_relative_eq!(c.real.read()?[0], 1.75);
-            assert_relative_eq!(c.imag.read()?[0], 0.25);
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_exp() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[PI / 2.0], &device)?;
-            let c = a.exp()?;
-            // e^(iπ/2) = i
-            let real = c.real.read()?;
-            let imag = c.imag.read()?;
-            assert_relative_eq!(real[0], 0.0);
-            assert_relative_eq!(imag[0], 1.0);
-            Ok(())
-        }
-
-        #[test]
-        fn test_log() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[1.0], &device)?;
-            let c = a.log()?;
-            // ln(i) = iπ/2
-            let real = c.real.read()?;
-            let imag = c.imag.read()?;
-            assert_relative_eq!(real[0], 0.0);
-            assert_relative_eq!(imag[0], PI / 2.0);
-            Ok(())
-        }
-
-        #[test]
-        fn test_conj() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
-            let c = a.conj()?;
-            assert_eq!(c.real.read()?, vec![1.0, 2.0]);
-            assert_eq!(c.imag.read()?, vec![-3.0, -4.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_abs() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 2>::new(&[3.0, 0.0], &[4.0, 1.0], &device)?;
-            let c = UnaryOp::abs(&a)?;
-            // |3 + 4i| = 5, |0 + i| = 1
-            assert_eq!(c.real()?.read()?, vec![5.0, 1.0]); // Correct: Accessing c.real
-            assert_eq!(c.imaginary()?.read()?, vec![0.0, 0.0]); // Correct: Verifying imaginary part is zero
-            Ok(())
-        }
-
-        #[test]
-        fn test_where_cond() -> Result<()> {
-            let device = Device::Cpu;
-            let cond = RowVector::<u8, 2>::new(&[1, 0], &device)?;
-            let on_true = ComplexRowVector::<f64, 2>::new(&[1.0, 1.0], &[1.0, 1.0], &device)?;
-            let on_false = ComplexRowVector::<f64, 2>::new(&[2.0, 2.0], &[2.0, 2.0], &device)?;
-            let result = cond.where_cond_complex(&on_true, &on_false)?;
-            assert_eq!(result.real.read()?, vec![1.0, 2.0]);
-            assert_eq!(result.imag.read()?, vec![1.0, 2.0]);
-            Ok(())
-        }
-
-        #[test]
-        fn test_scalar_operations() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 2>::new(&[1.0, 2.0], &[3.0, 4.0], &device)?;
-
-            // Test add_scalar
-            let add_result = a.add_scalar(2.0)?;
-            assert_eq!(add_result.real.read()?, vec![3.0, 4.0]);
-            assert_eq!(add_result.imag.read()?, vec![3.0, 4.0]);
-
-            // Test mul_scalar
-            let mul_result = a.mul_scalar(2.0)?;
-            assert_eq!(mul_result.real.read()?, vec![2.0, 4.0]);
-            assert_eq!(mul_result.imag.read()?, vec![6.0, 8.0]);
-
-            // Test div_scalar
-            let div_result = a.div_scalar(2.0)?;
-            assert_eq!(div_result.real.read()?, vec![0.5, 1.0]);
-            assert_eq!(div_result.imag.read()?, vec![1.5, 2.0]);
-
-            Ok(())
-        }
-
-        #[test]
-        fn test_transcendental_functions() -> Result<()> {
-            let device = Device::Cpu;
-            let a = ComplexRowVector::<f64, 1>::new(&[0.0], &[PI / 2.0], &device)?;
-
-            // Test sin
-            let sin_result = a.sin()?;
-            let sin_real = sin_result.real.read()?;
-            let sin_imag = sin_result.imag.read()?;
-            assert_relative_eq!(sin_real[0], 0.0);
-
-            // Test cos
-            let cos_result = a.cos()?;
-            let cos_real = cos_result.real.read()?;
-            let cos_imag = cos_result.imag.read()?;
-            assert_relative_eq!(cos_real[0], 2.5091784786580567);
-
-            // Test sinh
-            let sinh_result = a.sinh()?;
-            let sinh_real = sinh_result.real.read()?;
-
-            // Test cosh
-            let cosh_result = a.cosh()?;
-            let cosh_real = cosh_result.real.read()?;
-            assert_relative_eq!(cosh_real[0], 0.0);
-            Ok(())
-        }
-    }
-    #[cfg(test)]
-    mod complex_tensor2d {
+    mod test {
         use crate::*;
         use approx::assert_relative_eq;
         use candle_core::{Device, Result};
         use std::f64::consts::PI;
 
         #[test]
-        fn test_new_complex_tensor() -> Result<()> {
+        fn new_complex_tensor() -> Result<()> {
             let device = Device::Cpu;
             let real = vec![1.0, 2.0, 3.0, 4.0];
             let imag = vec![5.0, 6.0, 7.0, 8.0];
@@ -4577,7 +4549,7 @@ mod test {
         }
 
         #[test]
-        fn test_sub() -> Result<()> {
+        fn sub() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4596,7 +4568,7 @@ mod test {
         }
 
         #[test]
-        fn test_mul() -> Result<()> {
+        fn mul() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4621,7 +4593,7 @@ mod test {
             Ok(())
         }
         #[test]
-        fn test_div() -> Result<()> {
+        fn div() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[4.0], &[0.0], &device)?;
             let b = ComplexMatrix::<f64, 1, 1>::new(&[2.0], &[0.0], &device)?;
@@ -4634,7 +4606,7 @@ mod test {
         }
 
         #[test]
-        fn test_div_pure_imag() -> Result<()> {
+        fn div_pure_imag() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[0.0], &[1.0], &device)?;
             let b = ComplexMatrix::<f64, 1, 1>::new(&[0.0], &[1.0], &device)?;
@@ -4647,7 +4619,7 @@ mod test {
         }
 
         #[test]
-        fn test_conj() -> Result<()> {
+        fn conj() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4661,7 +4633,7 @@ mod test {
         }
 
         #[test]
-        fn test_abs() -> Result<()> {
+        fn abs() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 1>::new(&[3.0, 0.0], &[4.0, 1.0], &device)?;
             let c = a.abs()?;
@@ -4673,7 +4645,7 @@ mod test {
         }
 
         #[test]
-        fn test_log() -> Result<()> {
+        fn log() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[0.0], &[1.0], &device)?;
             let c = a.log()?;
@@ -4686,7 +4658,7 @@ mod test {
         }
 
         #[test]
-        fn test_pow_scalar() -> Result<()> {
+        fn pow_scalar() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[1.0], &[1.0], &device)?; // 1 + i
             let c = a.pow_scalar(2.0)?;
@@ -4699,7 +4671,7 @@ mod test {
             Ok(())
         }
         #[test]
-        fn test_powf_edge_cases() -> Result<()> {
+        fn powf_edge_cases() -> Result<()> {
             let device = Device::Cpu;
             // Test case 1: Negative base, fractional exponent
             let tensor = RowVector::<f64, 1>::new(&[-1.0], &device)?;
@@ -4719,7 +4691,7 @@ mod test {
             Ok(())
         }
         #[test]
-        fn test_pow() -> Result<()> {
+        fn pow() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[0.0], &[1.0], &device)?;
             let b = ComplexMatrix::<f64, 1, 1>::new(&[2.0], &[0.0], &device)?;
@@ -4733,7 +4705,7 @@ mod test {
         }
 
         #[test]
-        fn test_sub_scalar() -> Result<()> {
+        fn sub_scalar() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4747,7 +4719,7 @@ mod test {
         }
 
         #[test]
-        fn test_div_scalar() -> Result<()> {
+        fn div_scalar() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[2.0, 4.0, 6.0, 8.0],
@@ -4761,7 +4733,7 @@ mod test {
         }
 
         #[test]
-        fn test_zeros() -> Result<()> {
+        fn zeros() -> Result<()> {
             let device = Device::Cpu;
             let zeros = ComplexMatrix::<f64, 2, 2>::zeros(&device)?;
             assert_eq!(zeros.real.read()?, vec![vec![0.0, 0.0], vec![0.0, 0.0]]);
@@ -4770,7 +4742,7 @@ mod test {
         }
 
         #[test]
-        fn test_ones() -> Result<()> {
+        fn ones() -> Result<()> {
             let device = Device::Cpu;
             let ones = ComplexMatrix::<f64, 2, 2>::ones(&device)?;
             assert_eq!(ones.real.read()?, vec![vec![1.0, 1.0], vec![1.0, 1.0]]);
@@ -4779,7 +4751,7 @@ mod test {
         }
 
         #[test]
-        fn test_ones_neg() -> Result<()> {
+        fn ones_neg() -> Result<()> {
             let device = Device::Cpu;
             let ones_neg = ComplexMatrix::<f64, 2, 2>::ones_neg(&device)?;
             assert_eq!(
@@ -4791,7 +4763,7 @@ mod test {
         }
 
         #[test]
-        fn test_add() -> Result<()> {
+        fn add() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4810,7 +4782,7 @@ mod test {
         }
 
         #[test]
-        fn test_matmul() -> Result<()> {
+        fn matmul() -> Result<()> {
             let device = Device::Cpu;
             // (1+i)(2+2i) + (2+2i)(3+3i) = (2-2) + (2+2)i + (6-6) + (6+6)i = 0 + 16i
             let a = ComplexMatrix::<f64, 1, 2>::new(&[1.0, 2.0], &[1.0, 2.0], &device)?;
@@ -4824,7 +4796,7 @@ mod test {
         }
 
         #[test]
-        fn test_transpose() -> Result<()> {
+        fn transpose() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4838,7 +4810,7 @@ mod test {
         }
 
         #[test]
-        fn test_exp() -> Result<()> {
+        fn exp() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[0.0], &[PI / 2.0], &device)?;
             let c = a.exp()?;
@@ -4851,7 +4823,7 @@ mod test {
         }
 
         #[test]
-        fn test_scalar_operations() -> Result<()> {
+        fn scalar_operations() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 2, 2>::new(
                 &[1.0, 2.0, 3.0, 4.0],
@@ -4885,7 +4857,7 @@ mod test {
         }
 
         #[test]
-        fn test_transcendental_functions() -> Result<()> {
+        fn transcendental_functions() -> Result<()> {
             let device = Device::Cpu;
             let a = ComplexMatrix::<f64, 1, 1>::new(&[0.0], &[PI / 2.0], &device)?;
 
@@ -4915,7 +4887,7 @@ mod test {
         }
 
         #[test]
-        fn test_where_cond() -> Result<()> {
+        fn where_cond() -> Result<()> {
             let device = Device::Cpu;
             let cond = Matrix::<u8, 2, 2>::new(&[1, 0, 1, 0], &device)?;
             let on_true = ComplexMatrix::<f64, 2, 2>::new(
@@ -4933,5 +4905,27 @@ mod test {
             assert_eq!(result.imag.read()?, vec![vec![1.0, 2.0], vec![1.0, 2.0]]);
             Ok(())
         }
+    }
+}
+pub use {
+    column_vector::ColumnVector, complex_column_vector::ComplexColumnVector,
+    complex_matrix::ComplexMatrix, complex_row_vector::ComplexRowVector,
+    complex_scalar::ComplexScalar, matrix::Matrix, row_vector::RowVector, scalar::Scalar,
+};
+
+#[cfg(test)]
+mod test {
+    use approx::{assert_relative_eq, RelativeEq};
+    use std::fmt::Debug;
+    pub fn assert_relative_eq_vec<T: RelativeEq + Debug>(lhs: Vec<T>, rhs: Vec<T>) {
+        lhs.iter()
+            .zip(rhs)
+            .for_each(|(l, r)| assert_relative_eq!(l, &r));
+    }
+    pub fn assert_relative_eq_vec_vec<T: RelativeEq + Debug>(lhs: Vec<Vec<T>>, rhs: Vec<Vec<T>>) {
+        lhs.iter()
+            .flatten()
+            .zip(rhs.iter().flatten())
+            .for_each(|(l, r)| assert_relative_eq!(l, &r));
     }
 }

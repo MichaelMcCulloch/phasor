@@ -1721,7 +1721,6 @@ macro_rules! impl_complex_op {
         }
     };
 }
-
 macro_rules! impl_complex_elementwise_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident) => {
         impl<T: WithDType> ElementWiseOp<T> for $type<T> {
@@ -1936,7 +1935,6 @@ macro_rules! impl_complex_elementwise_op {
         }
     };
 }
-
 macro_rules! impl_complex_scalar_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident) => {
         impl<T: WithDType> ScalarOp<T> for $type<T> {
@@ -2208,7 +2206,6 @@ macro_rules! impl_complex_scalar_op {
         }
     };
 }
-
 macro_rules! impl_complex_trig_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident) => {
         impl<T: WithDType> TrigOp<T> for $type<T> {
@@ -2465,9 +2462,6 @@ macro_rules! impl_complex_trig_op {
         }
     };
 }
-
-// In utils/macros.rs
-
 macro_rules! impl_complex_unary_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident, $transpose_output:ident) => {
         impl<T: WithDType> UnaryOp<T> for $type<T> {
@@ -2624,7 +2618,6 @@ macro_rules! impl_complex_unary_op {
         }
     };
 }
-
 macro_rules! impl_complex_comparison_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $output_type:ident) => {
         impl<T: WithDType> ComparisonOp<T> for $type<T> {
@@ -2758,11 +2751,6 @@ macro_rules! impl_complex_comparison_op {
         }
     };
 }
-
-// In utils/macros.rs
-
-// In utils/macros.rs
-
 macro_rules! impl_complex_comparison_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $output_type:ident) => {
         impl<T: WithDType> ComparisonOp<T> for $type<T> {
@@ -3001,7 +2989,6 @@ macro_rules! impl_complex_comparison_op {
         }
     };
 }
-
 macro_rules! impl_complex_boolean_op {
     ($type:ident, $real_field:ident, $imag_field:ident, $output_type:ident, $rows:tt, $cols:tt) => {
         impl<const $rows: usize, const $cols: usize> BooleanOp for $type<u8, $rows, $cols> {
@@ -3115,7 +3102,6 @@ macro_rules! impl_complex_boolean_op {
         }
     };
 }
-
 macro_rules! impl_complex_tensor_factory {
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident, $rows:tt, $cols:tt) => {
         impl<T: WithDType, const $rows: usize, const $cols: usize> TensorFactory<T>
@@ -3198,7 +3184,6 @@ macro_rules! impl_complex_tensor_factory {
         }
     };
 }
-
 macro_rules! impl_complex_tensor_factory_float {
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident, $rows:tt, $cols:tt) => {
         impl<F: FloatDType, const $rows: usize, const $cols: usize> TensorFactoryFloat<F>

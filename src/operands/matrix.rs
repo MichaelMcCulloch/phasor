@@ -6,7 +6,6 @@ pub struct Matrix<T: WithDType, const ROWS: usize, const C: usize>(
     pub(crate) Tensor,
     pub(crate) PhantomData<T>,
 );
-
 impl_tensor_base!(Matrix, 0, ROWS, COLS);
 impl_elementwise_op!(Matrix, 0, ROWS, COLS);
 impl_scalar_op!(Matrix, 0, ROWS, COLS);

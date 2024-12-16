@@ -165,7 +165,7 @@ pub fn generic_matmul<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor
 
 #[inline]
 pub fn generic_dot<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
-    lhs.mul(&rhs)?.sum_all()?.reshape((1, 1))
+    lhs.matmul(&rhs)?.sum_all()?.reshape((1, 1))
 }
 
 #[inline]
@@ -482,6 +482,13 @@ mod test {
         let b = create_tensor(vec![3.0, 4.0], Shape::from((1, 2)), &device)?;
         let result = generic_add::<f64>(&a, &b)?;
         assert_relative_eq_vec_vec(result.to_vec2::<f64>()?, vec![vec![4.0, 6.0]]);
+
+        // Test with empty tensors
+        let empty_a = create_tensor(Vec::<f64>::new(), Shape::from((0, 0)), &device)?;
+        let empty_b = create_tensor(Vec::<f64>::new(), Shape::from((0, 0)), &device)?;
+        let empty_result = generic_add::<f64>(&empty_a, &empty_b)?;
+        assert_eq!(empty_result.shape(), &Shape::from((0, 0)));
+
         Ok(())
     }
 
@@ -783,6 +790,17 @@ mod test {
             result.to_vec2::<f64>()?,
             vec![vec![19.0, 22.0], vec![43.0, 50.0]]
         );
+
+        // Test with non-square matrices
+        let a = create_tensor(vec![1.0, 2.0, 3.0], Shape::from((1, 3)), &device)?;
+        let b = create_tensor(
+            vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+            Shape::from((3, 2)),
+            &device,
+        )?;
+        let result = generic_matmul::<f64>(&a, &b)?;
+        assert_eq!(result.to_vec2::<f64>()?, vec![vec![40.0, 46.0]]);
+
         Ok(())
     }
 
@@ -792,6 +810,18 @@ mod test {
         let a = create_tensor(vec![1.0, 2.0, 3.0, 4.0], Shape::from((1, 4)), &device)?;
         let result = generic_sum::<f64>(&a, 1)?;
         assert_eq!(result.to_vec1::<f64>()?, vec![10.0]);
+
+        // Test summing along different dimensions
+        let a = create_tensor(
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+            Shape::from((2, 3)),
+            &device,
+        )?;
+        let result_dim0 = generic_sum::<f64>(&a, 0)?;
+        assert_eq!(result_dim0.to_vec1::<f64>()?, vec![5.0, 7.0, 9.0]);
+        let result_dim1 = generic_sum::<f64>(&a, 1)?;
+        assert_eq!(result_dim1.to_vec1::<f64>()?, vec![6.0, 15.0]);
+
         Ok(())
     }
 
@@ -804,6 +834,19 @@ mod test {
         assert_eq!(
             result.to_vec2::<f64>()?,
             vec![vec![1.0, 2.0], vec![1.0, 2.0]]
+        );
+
+        // Test with different target shapes
+        let a = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let shape = (3, 3);
+        let result = generic_broadcast::<f64>(&a, shape)?;
+        assert_eq!(
+            result.to_vec2::<f64>()?,
+            vec![
+                vec![1.0, 1.0, 1.0],
+                vec![1.0, 1.0, 1.0],
+                vec![1.0, 1.0, 1.0]
+            ]
         );
         Ok(())
     }
@@ -933,6 +976,245 @@ mod test {
         let (real_result, imag_result) = generic_complex_componentwise_tanh::<f64>(&real, &imag)?;
         assert_relative_eq!(real_result.to_vec2::<f64>()?[0][0], 0.7615941559557649);
         assert_relative_eq!(imag_result.to_vec2::<f64>()?[0][0], 0.7615941559557649);
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_dot() -> Result<()> {
+        let device = Device::Cpu;
+        let a = create_tensor(vec![1.0, 2.0, 3.0], Shape::from((1, 3)), &device)?;
+        let b = create_tensor(vec![4.0, 5.0, 6.0], Shape::from((3, 1)), &device)?;
+        let result = generic_dot::<f64>(&a, &b)?;
+        assert_relative_eq!(result.to_vec2::<f64>()?[0][0], 32.0);
+
+        // Test with different vector sizes
+        let a = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let b = create_tensor(vec![3.0, 4.0], Shape::from((2, 1)), &device)?;
+        let result = generic_dot::<f64>(&a, &b)?;
+        assert_relative_eq!(result.to_vec2::<f64>()?[0][0], 11.0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_matmul() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![1.0, 2.0, 3.0, 4.0], Shape::from((2, 2)), &device)?;
+        let imag1 = create_tensor(vec![5.0, 6.0, 7.0, 8.0], Shape::from((2, 2)), &device)?;
+        let real2 = create_tensor(vec![9.0, 10.0, 11.0, 12.0], Shape::from((2, 2)), &device)?;
+        let imag2 = create_tensor(vec![13.0, 14.0, 15.0, 16.0], Shape::from((2, 2)), &device)?;
+        let (real, imag) = generic_complex_matmul::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(
+            real.to_vec2::<f64>()?,
+            vec![vec![-124.0, -132.0], vec![-140.0, -148.0]]
+        );
+        assert_eq!(
+            imag.to_vec2::<f64>()?,
+            vec![vec![154.0, 168.0], vec![250.0, 272.0]]
+        );
+
+        // Test with different matrix sizes
+        let real1 = create_tensor(vec![1.0, 2.0, 3.0], Shape::from((1, 3)), &device)?;
+        let imag1 = create_tensor(vec![4.0, 5.0, 6.0], Shape::from((1, 3)), &device)?;
+        let real2 = create_tensor(
+            vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0],
+            Shape::from((3, 2)),
+            &device,
+        )?;
+        let imag2 = create_tensor(
+            vec![13.0, 14.0, 15.0, 16.0, 17.0, 18.0],
+            Shape::from((3, 2)),
+            &device,
+        )?;
+        let (real, imag) = generic_complex_matmul::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(real.to_vec2::<f64>()?, vec![vec![-171.0, -180.0]]);
+        assert_eq!(imag.to_vec2::<f64>()?, vec![vec![233.0, 254.0]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_lt() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let imag1 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let real2 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let result = generic_complex_lt::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1, 0]]);
+
+        // Test with equal magnitudes
+        let real1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_lt::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![0]]);
+
+        // Test with zero values
+        let real1 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_lt::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_lte() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let imag1 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let real2 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let result = generic_complex_lte::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1, 0]]);
+
+        // Test with equal magnitudes
+        let real1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_lte::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_eq() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let imag1 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let real2 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let result = generic_complex_eq::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1, 0]]);
+
+        // Test with equal values
+        let real1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_eq::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_ne() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let imag1 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let real2 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let result = generic_complex_ne::<u8>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![0, 1]]);
+
+        // Test with equal values
+        let real1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_ne::<u8>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![0]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_gt() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let imag1 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let real2 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let result = generic_complex_gt::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1, 0]]);
+
+        // Test with equal magnitudes
+        let real1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_gt::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![0]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_gte() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let imag1 = create_tensor(vec![2.0, 1.0], Shape::from((1, 2)), &device)?;
+        let real2 = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![1.0, 1.0], Shape::from((1, 2)), &device)?;
+        let result = generic_complex_gte::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1, 0]]);
+
+        // Test with equal magnitudes
+        let real1 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag1 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let real2 = create_tensor(vec![0.0], Shape::from((1, 1)), &device)?;
+        let imag2 = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let result = generic_complex_gte::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(result.to_vec2::<u8>()?, vec![vec![1]]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_complex_outer() -> Result<()> {
+        let device = Device::Cpu;
+        let real1 = create_tensor(vec![1.0, 2.0], Shape::from((2, 1)), &device)?;
+        let imag1 = create_tensor(vec![3.0, 4.0], Shape::from((2, 1)), &device)?;
+        let real2 = create_tensor(vec![5.0, 6.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![7.0, 8.0], Shape::from((1, 2)), &device)?;
+        let (real_outer, imag_outer) =
+            generic_complex_outer::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(
+            real_outer.to_vec2::<f64>()?,
+            vec![vec![-16.0, -18.0], vec![-18.0, -20.0]]
+        );
+        assert_eq!(
+            imag_outer.to_vec2::<f64>()?,
+            vec![vec![22.0, 26.0], vec![34.0, 40.0]]
+        );
+
+        // Test with different shapes
+        let real1 = create_tensor(vec![1.0, 2.0, 3.0], Shape::from((3, 1)), &device)?;
+        let imag1 = create_tensor(vec![4.0, 5.0, 6.0], Shape::from((3, 1)), &device)?;
+        let real2 = create_tensor(vec![7.0, 8.0], Shape::from((1, 2)), &device)?;
+        let imag2 = create_tensor(vec![9.0, 10.0], Shape::from((1, 2)), &device)?;
+        let (real_outer, imag_outer) =
+            generic_complex_outer::<f64>(&real1, &imag1, &real2, &imag2)?;
+        assert_eq!(real_outer.shape(), &Shape::from((3, 2)));
+        assert_eq!(imag_outer.shape(), &Shape::from((3, 2)));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_with_f32() -> Result<()> {
+        let device = Device::Cpu;
+        let a = create_tensor(vec![1.0f32, 2.0f32], Shape::from((1, 2)), &device)?;
+        let b = create_tensor(vec![3.0f32, 4.0f32], Shape::from((1, 2)), &device)?;
+        let result = generic_add::<f32>(&a, &b)?;
+        assert_relative_eq_vec_vec(result.to_vec2::<f32>()?, vec![vec![4.0, 6.0]]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_generic_with_i64() -> Result<()> {
+        let device = Device::Cpu;
+        let a = create_tensor(vec![1i64, 2i64], Shape::from((1, 2)), &device)?;
+        let b = create_tensor(vec![3i64, 4i64], Shape::from((1, 2)), &device)?;
+        let result = generic_add::<i64>(&a, &b)?;
+        assert_eq!(result.to_vec2::<i64>()?, vec![vec![4, 6]]);
         Ok(())
     }
 }

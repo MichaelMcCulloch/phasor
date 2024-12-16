@@ -9,8 +9,9 @@ pub struct Matrix<T: WithDType, const ROWS: usize, const C: usize>(
 impl_tensor_base!(Matrix, 0, ROWS, COLS);
 impl_elementwise_op!(Matrix, 0, ROWS, COLS);
 impl_scalar_op!(Matrix, 0, ROWS, COLS);
+impl_power_op!(Matrix, 0, ROWS, COLS);
 impl_trig_op!(Matrix, 0, ROWS, COLS);
-impl_unary_op!(Matrix, 0, Matrix, COLS, ROWS);
+impl_unary_op!(Matrix, 0, ROWS, COLS);
 impl_comparison_op!(Matrix, 0, Matrix, ROWS, COLS);
 impl_tensor_factory!(Matrix, 0, ROWS, COLS);
 impl_tensor_factory_float!(Matrix, 0, ROWS, COLS);

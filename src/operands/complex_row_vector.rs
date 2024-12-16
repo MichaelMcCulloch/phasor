@@ -3,7 +3,7 @@
 use crate::ops::*;
 use crate::{ComplexColumnVector, ComplexMatrix, ComplexScalar, RowVector, Scalar};
 use candle_core::{DType, Device, FloatDType, Result, WithDType};
-use std::{f64::consts::PI, marker::PhantomData};
+use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct ComplexRowVector<T: WithDType, const ROWS: usize> {
     pub(crate) real: RowVector<T, ROWS>,
@@ -14,14 +14,7 @@ impl_complex_op!(ComplexRowVector, real, imag, RowVector, ROWS);
 impl_complex_elementwise_op!(ComplexRowVector, real, imag, RowVector, ROWS);
 impl_complex_scalar_op!(ComplexRowVector, real, imag, RowVector, ROWS);
 impl_complex_trig_op!(ComplexRowVector, real, imag, RowVector, ROWS);
-impl_complex_unary_op!(
-    ComplexRowVector,
-    real,
-    imag,
-    RowVector,
-    ComplexColumnVector,
-    ROWS
-);
+
 impl_complex_comparison_op!(ComplexRowVector, real, imag, RowVector, ROWS);
 impl_complex_tensor_factory!(ComplexRowVector, real, imag, RowVector, ROWS);
 impl_complex_tensor_factory_float!(ComplexRowVector, real, imag, RowVector, ROWS);
@@ -80,15 +73,15 @@ impl<T: WithDType, const COLS: usize> RowVectorOps<T, COLS> for ComplexRowVector
         &self,
         other: &Self::MatMulMatrix<M>,
     ) -> Result<Self::MatMulOutput<M>> {
+        let (real, imag) = crate::utils::methods::generic_complex_matmul::<T>(
+            &self.real.0,
+            &self.imag.0,
+            &other.real.0,
+            &other.imag.0,
+        )?;
         Ok(ComplexRowVector {
-            real: self
-                .real
-                .matmul(&other.real)?
-                .sub(&self.imag.matmul(&other.imag)?)?,
-            imag: self
-                .real
-                .matmul(&other.imag)?
-                .add(&self.imag.matmul(&other.real)?)?,
+            real: RowVector(real, PhantomData),
+            imag: RowVector(imag, PhantomData),
         })
     }
     #[inline]

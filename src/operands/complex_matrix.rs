@@ -1,7 +1,7 @@
 use crate::ops::*;
-use crate::{ComplexColumnVector, ComplexRowVector, ComplexScalar, Matrix};
+use crate::{ComplexColumnVector, ComplexRowVector, Matrix};
 use candle_core::{DType, Device, FloatDType, Result, WithDType};
-use std::{f64::consts::PI, marker::PhantomData};
+use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct ComplexMatrix<T: WithDType, const ROWS: usize, const C: usize> {
     pub(crate) real: Matrix<T, ROWS, C>,
@@ -12,7 +12,6 @@ impl_complex_op!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
 impl_complex_elementwise_op!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
 impl_complex_scalar_op!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
 impl_complex_trig_op!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
-impl_complex_unary_op!(ComplexMatrix, real, imag, Matrix, Matrix, COLS, ROWS);
 impl_complex_comparison_op!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
 impl_complex_tensor_factory!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
 impl_complex_tensor_factory_float!(ComplexMatrix, real, imag, Matrix, ROWS, COLS);
@@ -76,19 +75,19 @@ impl<T: WithDType, const ROWS: usize, const COLS: usize> MatrixOps<T, ROWS, COLS
         })
     }
     #[inline]
-    fn matmul<const O: usize>(
+    fn matmul<const M: usize>(
         &self,
-        other: &Self::MatMulMatrix<O>,
-    ) -> Result<Self::MatMulOutput<O>> {
+        other: &Self::MatMulMatrix<M>,
+    ) -> Result<Self::MatMulOutput<M>> {
+        let (real, imag) = crate::utils::methods::generic_complex_matmul::<T>(
+            &self.real.0,
+            &self.imag.0,
+            &other.real.0,
+            &other.imag.0,
+        )?;
         Ok(ComplexMatrix {
-            real: self
-                .real
-                .matmul(&other.real)?
-                .sub(&self.imag.matmul(&other.imag)?)?,
-            imag: self
-                .real
-                .matmul(&other.imag)?
-                .add(&self.imag.matmul(&other.real)?)?,
+            real: Matrix(real, PhantomData),
+            imag: Matrix(imag, PhantomData),
         })
     }
     #[inline]

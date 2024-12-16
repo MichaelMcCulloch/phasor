@@ -9,8 +9,9 @@ pub struct RowVector<T: WithDType, const ROWS: usize>(pub(crate) Tensor, pub(cra
 impl_tensor_base!(RowVector, 0, ROWS);
 impl_elementwise_op!(RowVector, 0, ROWS);
 impl_scalar_op!(RowVector, 0, ROWS);
+impl_power_op!(RowVector, 0, ROWS);
 impl_trig_op!(RowVector, 0, ROWS);
-impl_unary_op!(RowVector, 0, ColumnVector, ROWS);
+impl_unary_op!(RowVector, 0, ROWS);
 impl_comparison_op!(RowVector, 0, RowVector, ROWS);
 impl_tensor_factory!(RowVector, 0, ROWS);
 impl_tensor_factory_float!(RowVector, 0, ROWS);
@@ -46,7 +47,10 @@ impl<T: WithDType, const COLS: usize> RowVectorOps<T, COLS> for RowVector<T, COL
         &self,
         other: &Self::MatMulMatrix<M>,
     ) -> Result<Self::MatMulOutput<M>> {
-        Ok(RowVector(self.0.matmul(&other.0)?, PhantomData))
+        Ok(RowVector(
+            crate::utils::methods::generic_matmul::<T>(&self.0, &other.0)?,
+            PhantomData,
+        ))
     }
     #[inline]
     fn transpose(&self) -> Result<Self::TransposeOutput> {

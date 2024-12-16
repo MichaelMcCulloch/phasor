@@ -1,7 +1,7 @@
 use crate::ops::*;
-use crate::{ColumnVector, ComplexMatrix, ComplexRowVector, ComplexScalar, RowVector};
+use crate::{ColumnVector, ComplexMatrix, ComplexRowVector};
 use candle_core::{DType, Device, FloatDType, Result, WithDType};
-use std::{f64::consts::PI, marker::PhantomData};
+use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct ComplexColumnVector<T: WithDType, const ROWS: usize> {
     pub(crate) real: ColumnVector<T, ROWS>,
@@ -12,14 +12,6 @@ impl_complex_op!(ComplexColumnVector, real, imag, ColumnVector, ROWS);
 impl_complex_elementwise_op!(ComplexColumnVector, real, imag, ColumnVector, ROWS);
 impl_complex_scalar_op!(ComplexColumnVector, real, imag, ColumnVector, ROWS);
 impl_complex_trig_op!(ComplexColumnVector, real, imag, ColumnVector, ROWS);
-impl_complex_unary_op!(
-    ComplexColumnVector,
-    real,
-    imag,
-    ColumnVector,
-    RowVector,
-    ROWS
-);
 impl_complex_comparison_op!(ComplexColumnVector, real, imag, ColumnVector, ROWS);
 impl_complex_tensor_factory!(ComplexColumnVector, real, imag, ColumnVector, ROWS);
 impl_complex_tensor_factory_float!(ComplexColumnVector, real, imag, ColumnVector, ROWS);

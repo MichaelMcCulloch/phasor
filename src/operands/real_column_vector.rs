@@ -10,8 +10,9 @@ pub struct ColumnVector<T: WithDType, const ROWS: usize>(
 impl_tensor_base!(ColumnVector, 0, ROWS);
 impl_elementwise_op!(ColumnVector, 0, ROWS);
 impl_scalar_op!(ColumnVector, 0, ROWS);
+impl_power_op!(ColumnVector, 0, ROWS);
 impl_trig_op!(ColumnVector, 0, ROWS);
-impl_unary_op!(ColumnVector, 0, RowVector, ROWS);
+impl_unary_op!(ColumnVector, 0, ROWS);
 impl_comparison_op!(ColumnVector, 0, ColumnVector, ROWS);
 impl_tensor_factory!(ColumnVector, 0, ROWS);
 impl_tensor_factory_float!(ColumnVector, 0, ROWS);

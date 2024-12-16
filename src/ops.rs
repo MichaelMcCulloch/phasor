@@ -31,8 +31,8 @@ pub trait ScalarOp<T: WithDType>: TensorBase<T> {
     fn sub_scalar(&self, scalar: T) -> Result<Self>;
     fn mul_scalar(&self, scalar: T) -> Result<Self>;
     fn div_scalar(&self, scalar: T) -> Result<Self>;
-    fn pow_scalar(&self, scalar: T) -> Result<Self>;
-    fn powf(&self, exponent: f64) -> Result<Self>;
+}
+pub trait PowerOp<T: WithDType>: TensorBase<T> {
     fn pow(&self, other: &Self) -> Result<Self>;
 }
 
@@ -91,7 +91,6 @@ pub trait MatrixOps<T: WithDType, const R: usize, const C: usize>:
 
 // =============== Unary Operations ===============
 pub trait UnaryOp<T: WithDType>: TensorBase<T> {
-    type TransposeOutput;
     type ScalarOutput: IsScalar;
 
     fn neg(&self) -> Result<Self>;
@@ -105,13 +104,7 @@ pub trait UnaryOp<T: WithDType>: TensorBase<T> {
 pub trait TrigOp<T: WithDType>: TensorBase<T> {
     type Output;
 
-    fn sin(&self) -> Result<Self::Output>;
-    fn cos(&self) -> Result<Self::Output>;
-    fn sinh(&self) -> Result<Self::Output>;
-    fn cosh(&self) -> Result<Self::Output>;
     fn tanh(&self) -> Result<Self::Output>;
-    fn atan(&self) -> Result<Self::Output>;
-    fn atan2(&self, x: &Self) -> Result<Self::Output>;
 }
 
 // =============== Complex Number Operations ===============
@@ -121,7 +114,6 @@ pub trait ComplexOp<T: WithDType>: TensorBase<T> {
 
     fn conj(&self) -> Result<Self::Output>;
     fn magnitude(&self) -> Result<Self::RealOutput>;
-    fn arg(&self) -> Result<Self::RealOutput>;
     fn real(&self) -> Result<Self::RealOutput>;
     fn imaginary(&self) -> Result<Self::RealOutput>;
 }

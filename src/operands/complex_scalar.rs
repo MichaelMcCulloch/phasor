@@ -1,7 +1,7 @@
 use crate::ops::*;
 use crate::Scalar;
 use candle_core::{DType, Device, FloatDType, Result, WithDType};
-use std::{f64::consts::PI, marker::PhantomData};
+use std::marker::PhantomData;
 #[derive(Debug, Clone)]
 pub struct ComplexScalar<T: WithDType> {
     pub(crate) real: Scalar<T>,
@@ -12,7 +12,6 @@ impl_complex_op!(ComplexScalar, real, imag, Scalar);
 impl_complex_elementwise_op!(ComplexScalar, real, imag, Scalar);
 impl_complex_scalar_op!(ComplexScalar, real, imag, Scalar);
 impl_complex_trig_op!(ComplexScalar, real, imag, Scalar);
-impl_complex_unary_op!(ComplexScalar, real, imag, Scalar, ComplexScalar);
 impl_complex_comparison_op!(ComplexScalar, real, imag, Scalar);
 impl_complex_tensor_factory!(ComplexScalar, real, imag, Scalar);
 impl_complex_tensor_factory_float!(ComplexScalar, real, imag, Scalar);

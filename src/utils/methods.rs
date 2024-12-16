@@ -978,6 +978,10 @@ mod test {
         assert_relative_eq!(imag_result.to_vec2::<f64>()?[0][0], 0.7615941559557649);
         Ok(())
     }
+    #[test]
+    fn test_generic_complex_tanh() -> Result<()> {
+        unimplemented!("An exercise for the reader.")
+    }
 
     #[test]
     fn test_generic_dot() -> Result<()> {

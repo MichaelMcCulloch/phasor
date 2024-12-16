@@ -124,7 +124,6 @@ pub trait ComplexOp<T: WithDType>: TensorBase<T> {
     fn arg(&self) -> Result<Self::RealOutput>;
     fn real(&self) -> Result<Self::RealOutput>;
     fn imaginary(&self) -> Result<Self::RealOutput>;
-    fn pow(&self, other: &Self) -> Result<Self::Output>;
 }
 
 // =============== Real-Complex Operations ===============

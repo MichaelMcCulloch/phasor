@@ -1583,19 +1583,6 @@ macro_rules! impl_complex_op {
             fn imaginary(&self) -> Result<Self::RealOutput> {
                 Ok(self.$imag_field.clone())
             }
-            #[inline]
-            fn pow(&self, other: &Self) -> Result<Self::Output> {
-                let (real, imag) = crate::utils::methods::generic_complex_pow::<T>(
-                    &self.real.0,
-                    &self.imag.0,
-                    &other.real.0,
-                    &other.imag.0,
-                )?;
-                Ok(Self {
-                    real: $real_output(real, PhantomData),
-                    imag: $real_output(imag, PhantomData),
-                })
-            }
         }
     };
     ($type:ident, $real_field:ident, $imag_field:ident, $real_output:ident, $rows:tt) => {
@@ -1642,19 +1629,6 @@ macro_rules! impl_complex_op {
             #[inline]
             fn imaginary(&self) -> Result<Self::RealOutput> {
                 Ok(self.$imag_field.clone())
-            }
-            #[inline]
-            fn pow(&self, other: &Self) -> Result<Self::Output> {
-                let (real, imag) = crate::utils::methods::generic_complex_pow::<T>(
-                    &self.real.0,
-                    &self.imag.0,
-                    &other.real.0,
-                    &other.imag.0,
-                )?;
-                Ok(Self {
-                    real: $real_output(real, PhantomData),
-                    imag: $real_output(imag, PhantomData),
-                })
             }
         }
     };
@@ -1704,19 +1678,6 @@ macro_rules! impl_complex_op {
             #[inline]
             fn imaginary(&self) -> Result<Self::RealOutput> {
                 Ok(self.$imag_field.clone())
-            }
-            #[inline]
-            fn pow(&self, other: &Self) -> Result<Self::Output> {
-                let (real, imag) = crate::utils::methods::generic_complex_pow::<T>(
-                    &self.real.0,
-                    &self.imag.0,
-                    &other.real.0,
-                    &other.imag.0,
-                )?;
-                Ok(Self {
-                    real: $real_output(real, PhantomData),
-                    imag: $real_output(imag, PhantomData),
-                })
             }
         }
     };

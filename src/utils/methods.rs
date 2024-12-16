@@ -162,6 +162,12 @@ pub fn generic_transpose<T: WithDType>(tensor: &Tensor) -> Result<Tensor> {
 pub fn generic_matmul<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
     lhs.matmul(rhs)
 }
+
+#[inline]
+pub fn generic_dot<T: WithDType>(lhs: &Tensor, rhs: &Tensor) -> Result<Tensor> {
+    lhs.mul(&rhs)?.sum_all()?.reshape((1, 1))
+}
+
 #[inline]
 pub fn generic_complex_matmul<T: WithDType>(
     lhs_real: &Tensor,
@@ -186,8 +192,8 @@ pub fn generic_sum<T: WithDType>(tensor: &Tensor, dim: usize) -> Result<Tensor> 
 }
 
 #[inline]
-pub fn generic_broadcast<T: WithDType>(tensor: &Tensor, shape: &Shape) -> Result<Tensor> {
-    tensor.broadcast_as(shape)
+pub fn generic_broadcast<T: WithDType>(tensor: &Tensor, (r, c): (usize, usize)) -> Result<Tensor> {
+    tensor.broadcast_as(Shape::from_dims(&[r, c]))
 }
 
 #[inline]
@@ -327,6 +333,24 @@ pub fn generic_complex_lt<T: WithDType>(
         0.5,
     )?;
     generic_lt::<T>(&mag_self, &mag_other)
+}
+#[inline]
+pub fn generic_complex_outer<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+    other_real: &Tensor,
+    other_imag: &Tensor,
+) -> Result<(Tensor, Tensor)> {
+    let real_outer = generic_sub::<T>(
+        &generic_matmul::<T>(&real, &other_real)?,
+        &generic_matmul::<T>(&imag, &other_imag)?,
+    )?;
+    let imag_outer = generic_add::<T>(
+        &generic_matmul::<T>(&imag, &other_real)?,
+        &generic_matmul::<T>(&real, &other_imag)?,
+    )?;
+
+    Ok((real_outer, imag_outer))
 }
 
 #[inline]
@@ -775,8 +799,8 @@ mod test {
     fn test_generic_broadcast() -> Result<()> {
         let device = Device::Cpu;
         let a = create_tensor(vec![1.0, 2.0], Shape::from((1, 2)), &device)?;
-        let shape = Shape::from(Shape::from((2, 2)));
-        let result = generic_broadcast::<f64>(&a, &shape)?;
+        let shape = (2, 2);
+        let result = generic_broadcast::<f64>(&a, shape)?;
         assert_eq!(
             result.to_vec2::<f64>()?,
             vec![vec![1.0, 2.0], vec![1.0, 2.0]]

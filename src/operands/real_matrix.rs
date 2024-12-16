@@ -1,6 +1,7 @@
 use crate::*;
 use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
 use std::{f64::consts::PI, marker::PhantomData};
+use utils::methods::{generic_matmul, generic_sum, generic_transpose};
 #[derive(Debug, Clone)]
 pub struct Matrix<T: WithDType, const ROWS: usize, const C: usize>(
     pub(crate) Tensor,
@@ -40,24 +41,27 @@ impl<T: WithDType, const ROWS: usize, const COLS: usize> MatrixOps<T, ROWS, COLS
     #[inline]
     fn sum_rows(&self) -> Result<Self::RowSumOutput> {
         Ok(ColumnVector(
-            self.0.sum(1)?.reshape((ROWS, 1))?,
+            generic_sum::<T>(&self.0, 1)?.reshape((ROWS, 1))?,
             PhantomData,
         ))
     }
     #[inline]
     fn sum_cols(&self) -> Result<Self::ColSumOutput> {
-        Ok(RowVector(self.0.sum(0)?.reshape((1, COLS))?, PhantomData))
+        Ok(RowVector(
+            generic_sum::<T>(&self.0, 0)?.reshape((1, COLS))?,
+            PhantomData,
+        ))
     }
     #[inline]
     fn matmul<const O: usize>(
         &self,
         other: &Self::MatMulMatrix<O>,
     ) -> Result<Self::MatMulOutput<O>> {
-        Ok(Matrix(self.0.matmul(&other.0)?, PhantomData))
+        Ok(Matrix(generic_matmul::<T>(&self.0, &other.0)?, PhantomData))
     }
     #[inline]
     fn transpose(&self) -> Result<Self::TransposeOutput> {
-        Ok(Matrix(self.0.t()?, PhantomData))
+        Ok(Matrix(generic_transpose::<T>(&self.0)?, PhantomData))
     }
 }
 impl<T: WithDType, const ROWS: usize, const COLS: usize> MatrixFactory<T, ROWS, COLS>

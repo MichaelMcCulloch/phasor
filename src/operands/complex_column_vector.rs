@@ -1,7 +1,10 @@
 use crate::ops::*;
+use crate::utils::methods::generic_complex_outer;
 use crate::{ColumnVector, ComplexMatrix, ComplexRowVector};
 use candle_core::{DType, Device, FloatDType, Result, WithDType};
 use std::marker::PhantomData;
+
+use super::Matrix;
 #[derive(Debug, Clone)]
 pub struct ComplexColumnVector<T: WithDType, const ROWS: usize> {
     pub(crate) real: ColumnVector<T, ROWS>,
@@ -61,11 +64,15 @@ impl<T: WithDType, const ROWS: usize> ColumnVectorOps<T, ROWS> for ComplexColumn
         &self,
         other: &Self::OuterInput<COLS>,
     ) -> Result<Self::OuterOutput<COLS>> {
+        let (real_part, imag_part) =
+            generic_complex_outer::<T>(&self.real.0, &self.imag.0, &other.real.0, &other.imag.0)?;
+
         Ok(ComplexMatrix {
-            real: self.real.outer(&other.real)?,
-            imag: self.imag.outer(&other.imag)?,
+            real: Matrix(real_part, PhantomData),
+            imag: Matrix(imag_part, PhantomData),
         })
     }
+
     #[inline]
     fn transpose(&self) -> Result<Self::TransposeOutput> {
         Ok(ComplexRowVector {

@@ -1,6 +1,7 @@
 use crate::*;
 use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
 use std::{f64::consts::PI, marker::PhantomData};
+use utils::methods::{generic_broadcast, generic_matmul, generic_transpose};
 
 #[derive(Debug, Clone)]
 pub struct ColumnVector<T: WithDType, const ROWS: usize>(
@@ -40,14 +41,17 @@ impl<T: WithDType, const ROWS: usize> ColumnVectorOps<T, ROWS> for ColumnVector<
         &self,
         other: &Self::OuterInput<COLS>,
     ) -> Result<Self::OuterOutput<COLS>> {
-        Ok(Matrix(self.0.matmul(&other.0)?, PhantomData))
+        Ok(Matrix(generic_matmul::<T>(&self.0, &other.0)?, PhantomData))
     }
     #[inline]
     fn transpose(&self) -> Result<Self::TransposeOutput> {
-        Ok(RowVector(self.0.t()?, PhantomData))
+        Ok(RowVector(generic_transpose::<T>(&self.0)?, PhantomData))
     }
     #[inline]
     fn broadcast<const C: usize>(&self) -> Result<Self::BroadcastOutput<C>> {
-        Ok(Matrix(self.0.broadcast_as((ROWS, C))?, PhantomData))
+        Ok(Matrix(
+            generic_broadcast::<T>(&self.0, (ROWS, C))?,
+            PhantomData,
+        ))
     }
 }

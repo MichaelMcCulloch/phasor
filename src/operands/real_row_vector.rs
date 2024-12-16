@@ -3,6 +3,7 @@ use crate::*;
 use crate::{ColumnVector, ComplexRowVector};
 use candle_core::{DType, Device, FloatDType, Result, Tensor, WithDType};
 use std::marker::PhantomData;
+use utils::methods::{generic_broadcast, generic_dot, generic_transpose};
 #[derive(Debug, Clone)]
 pub struct RowVector<T: WithDType, const ROWS: usize>(pub(crate) Tensor, pub(crate) PhantomData<T>);
 
@@ -37,10 +38,7 @@ impl<T: WithDType, const COLS: usize> RowVectorOps<T, COLS> for RowVector<T, COL
     type BroadcastOutput<const ROWS: usize> = Matrix<T, ROWS, COLS>;
     #[inline]
     fn dot(&self, other: &Self::DotInput) -> Result<Self::DotOutput> {
-        Ok(Scalar(
-            self.0.mul(&other.0)?.sum_all()?.reshape((1, 1))?,
-            PhantomData,
-        ))
+        Ok(Scalar(generic_dot::<T>(&self.0, &other.0)?, PhantomData))
     }
     #[inline]
     fn matmul<const M: usize>(
@@ -54,10 +52,13 @@ impl<T: WithDType, const COLS: usize> RowVectorOps<T, COLS> for RowVector<T, COL
     }
     #[inline]
     fn transpose(&self) -> Result<Self::TransposeOutput> {
-        Ok(ColumnVector(self.0.t()?, PhantomData))
+        Ok(ColumnVector(generic_transpose::<T>(&self.0)?, PhantomData))
     }
     #[inline]
     fn broadcast<const ROWS: usize>(&self) -> Result<Self::BroadcastOutput<ROWS>> {
-        Ok(Matrix(self.0.broadcast_as((ROWS, COLS))?, PhantomData))
+        Ok(Matrix(
+            generic_broadcast::<T>(&self.0, (ROWS, COLS))?,
+            PhantomData,
+        ))
     }
 }

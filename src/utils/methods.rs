@@ -310,6 +310,13 @@ pub fn generic_complex_componentwise_tanh<T: WithDType>(
 ) -> Result<(Tensor, Tensor)> {
     Ok((generic_tanh::<T>(&real)?, generic_tanh::<T>(&imag)?))
 }
+#[inline]
+pub fn generic_complex_tanh<T: WithDType>(
+    real: &Tensor,
+    imag: &Tensor,
+) -> Result<(Tensor, Tensor)> {
+    unimplemented!("An exercise for the reader.")
+}
 
 #[inline]
 pub fn generic_complex_lt<T: WithDType>(

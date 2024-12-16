@@ -987,7 +987,13 @@ mod test {
     }
     #[test]
     fn test_generic_complex_tanh() -> Result<()> {
-        unimplemented!("An exercise for the reader.")
+        let device = Device::Cpu;
+        let real = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let imag = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
+        let (real_result, imag_result) = generic_complex_tanh::<f64>(&real, &imag)?;
+        assert_relative_eq!(real_result.to_vec2::<f64>()?[0][0], 0.99627207622075);
+        assert_relative_eq!(imag_result.to_vec2::<f64>()?[0][0], 0.0);
+        Ok(())
     }
 
     #[test]

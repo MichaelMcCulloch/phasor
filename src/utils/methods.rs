@@ -311,9 +311,9 @@ pub fn generic_complex_componentwise_tanh<T: WithDType>(
     Ok((generic_tanh::<T>(&real)?, generic_tanh::<T>(&imag)?))
 }
 #[inline]
-pub fn generic_complex_tanh<T: WithDType>(
-    real: &Tensor,
-    imag: &Tensor,
+pub fn _generic_complex_tanh<T: WithDType>(
+    _real: &Tensor,
+    _imag: &Tensor,
 ) -> Result<(Tensor, Tensor)> {
     unimplemented!("An exercise for the reader.")
 }
@@ -465,7 +465,6 @@ mod test {
     use approx::{assert_relative_eq, RelativeEq};
     use candle_core::{DType, Device, Result, Shape, Tensor};
     use core::f64;
-    use std::f64::consts::PI;
     use std::fmt::Debug;
     pub fn assert_relative_eq_vec<T: RelativeEq + Debug>(lhs: Vec<T>, rhs: Vec<T>) {
         lhs.iter()
@@ -990,7 +989,7 @@ mod test {
         let device = Device::Cpu;
         let real = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
         let imag = create_tensor(vec![1.0], Shape::from((1, 1)), &device)?;
-        let (real_result, imag_result) = generic_complex_tanh::<f64>(&real, &imag)?;
+        let (real_result, imag_result) = _generic_complex_tanh::<f64>(&real, &imag)?;
         assert_relative_eq!(real_result.to_vec2::<f64>()?[0][0], 0.99627207622075);
         assert_relative_eq!(imag_result.to_vec2::<f64>()?[0][0], 0.0);
         Ok(())

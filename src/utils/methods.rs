@@ -205,6 +205,16 @@ pub fn generic_complex_add<T: WithDType>(
 ) -> Result<(Tensor, Tensor)> {
     Ok((lhs_real.add(rhs_real)?, lhs_imag.add(rhs_imag)?))
 }
+#[inline]
+pub fn generic_magnitude<T: WithDType>(lhs_real: &Tensor, lhs_imag: &Tensor) -> Result<Tensor> {
+    Ok(crate::utils::methods::generic_powf::<T>(
+        &crate::utils::methods::generic_add::<T>(
+            &crate::utils::methods::generic_powf::<T>(&lhs_real, 2.0)?,
+            &crate::utils::methods::generic_powf::<T>(&lhs_imag, 2.0)?,
+        )?,
+        0.5,
+    )?)
+}
 
 #[inline]
 pub fn generic_complex_sub<T: WithDType>(
